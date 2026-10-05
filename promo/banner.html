@@ -1,0 +1,915 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>MainStreet Discord Banner</title>
+<style>html,body{margin:0;padding:0;background:#000;overflow:hidden}#stage{display:block;width:1920px;height:1080px}</style>
+</head><body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<div id="fxhost" style="position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:-1"></div>
+
+<!-- canvas-ui WebGL effects. The promise is created in a classic script so the
+     main renderer below can await it; the module that resolves it is deferred. -->
+<script>window.__fxResolve=null; window.FXREADY=new Promise(r=>{window.__fxResolve=r;});</script>
+<script type="module">
+import { installClock, makeStage } from './fx/driver.js';
+installClock();                       // must precede any engine construction
+const FACTORIES = {};
+try {
+  FACTORIES.Droplets = (await import('./fx/dist/lib/Droplets/DropletsVanilla.js')).createDroplets;
+  FACTORIES.Glitch   = (await import('./fx/dist/lib/Glitch/GlitchVanilla.js')).createGlitch;
+} catch (e) { console.error('fx load failed', e); }
+
+const host = document.getElementById('fxhost');
+const pool = {};
+
+/* Engines accumulate their own `time`, so a worker that starts mid-film would
+   see the effect begin at zero. Each effect is therefore scoped to its scene
+   and pre-rolled from that scene's first frame when the sequence is broken.
+   Drop geometry depends on time, not on the content texture, so pre-rolling
+   against the current frame is exact for the pattern and cheap. */
+function obtain(name, opts){
+  let e = pool[name];
+  if (!e){
+    const stage = makeStage(host, 1920, 1080);
+    e = pool[name] = { stage, inst:null, next:-1, start:-1 };
+  }
+  return e;
+}
+window.FX = {
+  available: Object.keys(FACTORIES),
+  apply(name, srcCanvas, n, sceneStart, opts){
+    const make = FACTORIES[name];
+    if (!make) return null;
+    const e = obtain(name);
+    e.stage.setPainter(ctx => ctx.drawImage(srcCanvas, 0, 0));
+    const fresh = !e.inst || e.start !== sceneStart || e.next !== n;
+    if (fresh){
+      if (e.inst) { try { e.inst.destroy(); } catch(_){} }
+      e.inst = make({source:e.stage.source, content:e.stage.content, output:e.stage.output}, opts);
+      e.start = sceneStart;
+      for (let k = sceneStart; k < n; k++) e.stage.step(k);   // silent pre-roll
+    } else if (opts && e.inst.setOptions) {
+      e.inst.setOptions(opts);
+    }
+    if (!e.inst) return null;
+    e.stage.step(n);
+    e.next = n + 1;
+    return e.stage.output;
+  }
+};
+window.__fxResolve();
+</script>
+<script>
+/* =======================================================================
+   MAINSTREET RP — Discord server banner. 1920x1080 master, 4.0s seamless loop.
+   Deterministic: renderFrame(n) depends only on n. No wall clock, no
+   unseeded random, so re-renders are byte-identical.
+
+   Pipeline per frame:
+     scene -> SCN buffer (under virtual camera)
+     post  -> god rays, bloom, halation, chromatic aberration, film grade,
+              grain, gate weave, vignette, letterbox
+     UI    -> drawn after post so it stays razor sharp
+   120 BPM / 2.0s bars; every cut lands on a bar line.
+   ======================================================================= */
+
+const CONFIG = { letterbox: 0 };
+const W = 1920, H = 1080, FPS = 15, DURATION = 4.0;      // 60 frames, one loop (15fps keeps the GIF under 10 MB)
+const TOTAL = Math.round(DURATION * FPS);
+const C = {
+  bg:'#050c05', deep:'#0a160a', lime:'#57ee11', mid:'#219b13', dark:'#1d5a17',
+  pale:'#8bd468', chrome:'#e6e9e4', steel:'#a1a79f', dim:'#5a6458'
+};
+const DISP = '"Liberation Sans", Arial, Helvetica, sans-serif';
+const MONO = '"Liberation Mono", "DejaVu Sans Mono", monospace';
+
+/* ---------- buffers ---------- */
+function mk(w,h){ const c = document.createElement('canvas'); c.width=w; c.height=h; return c; }
+const OUT = document.getElementById('stage'), out = OUT.getContext('2d', {alpha:false});
+const SCN = mk(W,H),       scn = SCN.getContext('2d');      // scene render
+const TMP = mk(W,H),       tmp = TMP.getContext('2d');      // post scratch
+const CHN = mk(W,H),       chn = CHN.getContext('2d');      // channel isolate
+const BW = W>>2, BH = H>>2;
+const B1 = mk(BW,BH), b1 = B1.getContext('2d');             // bright pass
+const B2 = mk(BW,BH), b2 = B2.getContext('2d');             // blurred bright
+const B3 = mk(BW,BH), b3 = B3.getContext('2d');             // god rays
+let x = scn;                                                // scenes draw to x
+
+/* ---------- math ---------- */
+const cl = t => t < 0 ? 0 : t > 1 ? 1 : t;
+const eOutCubic = t => 1 - Math.pow(1 - cl(t), 3);
+const eOutQuint = t => 1 - Math.pow(1 - cl(t), 5);
+const eOutExpo  = t => cl(t) >= 1 ? 1 : 1 - Math.pow(2, -11 * cl(t));
+const eInCubic  = t => Math.pow(cl(t), 3);
+const eInExpo   = t => cl(t) <= 0 ? 0 : Math.pow(2, 10*cl(t) - 10);
+const eInOut    = t => { t = cl(t); return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; };
+const eInOutExpo= t => { t=cl(t); return t===0?0:t===1?1:t<.5?Math.pow(2,20*t-10)/2:(2-Math.pow(2,-20*t+10))/2; };
+const eOutBack  = t => { t = cl(t); const c = 1.8; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); };
+const mix = (a,b,t) => a + (b-a) * cl(t);
+const band = (t,a,b,fi,fo) => Math.min(eOutCubic((t-a)/fi), 1 - eInCubic((t-(b-fo))/fo));
+function prng(seed){
+  let a = seed | 0;
+  return function(){
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+/* Smooth deterministic drift — sum of incommensurate sines. */
+function drift(t, seed){
+  const s = seed * 1.7;
+  return (Math.sin(t*0.71 + s) + Math.sin(t*1.63 + s*2.1)*0.6 + Math.sin(t*2.37 + s*3.3)*0.3) / 1.9;
+}
+
+/* ---------- assets ---------- */
+const IMG = {};
+function loadImg(key, src){
+  return new Promise(res => { const i = new Image(); i.onload=()=>{IMG[key]=i;res();}; i.onerror=()=>res(); i.src=src; });
+}
+/* Media plates: build.js injects window.MEDIA_MANIFEST after scanning media/.
+   Each entry {slot, kind:'video'|'still', frames:[urls]} — absent is fine,
+   every slot has a designed graphic fallback. */
+const MEDIA = {};
+window.MEDIA = MEDIA;   // exposed so build.js can verify ingest landed
+function loadMedia(){
+  const man = window.MEDIA_MANIFEST || [];
+  const jobs = [];
+  for (const m of man){
+    const imgs = [];
+    m.frames.forEach((u,i) => jobs.push(new Promise(r => {
+      const im = new Image(); im.onload=()=>{imgs[i]=im;r();}; im.onerror=()=>r(); im.src=u;
+    })));
+    MEDIA[m.slot] = { kind:m.kind, imgs, count:m.frames.length };
+  }
+  return Promise.all(jobs);
+}
+window.ASSETS = Promise.all([
+  loadImg('badge','assets/badge.png'),
+  loadImg('mark','assets/mark.png')
+]).then(loadMedia).then(() => window.FXREADY);
+function hasPlate(slot){ const m = MEDIA[slot]; return !!(m && m.imgs && m.imgs.length && m.imgs[0]); }
+
+/* ---------- type ---------- */
+function setDisp(s,w){ x.font = (w||'bold') + ' ' + s + 'px ' + DISP; }
+function setMono(s,w){ x.font = (w||'normal') + ' ' + s + 'px ' + MONO; }
+function trackedW(str, track){
+  let w = 0; const ch = Array.from(str);
+  for (const c of ch) w += x.measureText(c).width + track;
+  return w - (ch.length ? track : 0);
+}
+function chromeGrad(size){
+  const g = x.createLinearGradient(0, -size*0.74, 0, size*0.10);
+  g.addColorStop(0.00,'#ffffff'); g.addColorStop(0.26,'#d9ded7');
+  g.addColorStop(0.45,'#6d746b'); g.addColorStop(0.53,'#9aa197');
+  g.addColorStop(0.72,'#f6f9f5'); g.addColorStop(1.00,'#8e958c');
+  return g;
+}
+/* Per-character animated display type. o.charIn = {u, stagger, dur, rise} */
+function ctext(str, cx, cy, size, o){
+  o = o || {};
+  const sq = o.sq == null ? 0.80 : o.sq, track = o.track || 0;
+  const align = o.align || 'center';
+  x.save();
+  if (o.mono) setMono(size, o.weight || 'bold'); else setDisp(size, o.weight);
+  x.textBaseline = o.baseline || 'alphabetic';
+  const tw = trackedW(str, track) * sq;
+  const sx = align === 'center' ? cx - tw/2 : align === 'right' ? cx - tw : cx;
+  x.translate(sx, cy); x.scale(sq, 1);
+  const fill = o.chromeFill ? chromeGrad(size) : (o.color || C.chrome);
+  const ch = Array.from(str); let p = 0;
+  const ci = o.charIn;
+  for (let k = 0; k < ch.length; k++){
+    const c = ch[k];
+    let a = 1, dy = 0;
+    if (ci){
+      const lp = eOutQuint((ci.u - k*ci.stagger) / ci.dur);
+      a = lp; dy = (1 - lp) * (ci.rise == null ? size*0.42 : ci.rise);
+      if (a <= 0.002){ p += x.measureText(c).width + track; continue; }
+    }
+    x.save();
+    if (ci){ x.globalAlpha *= a; x.translate(0, dy); }
+    if (o.stroke){ x.lineWidth = o.strokeW || 2; x.strokeStyle = o.stroke; x.strokeText(c, p, 0); }
+    if (o.fill !== false){ x.fillStyle = fill; x.fillText(c, p, 0); }
+    x.restore();
+    p += x.measureText(c).width + track;
+  }
+  x.restore();
+  return tw;
+}
+function ctextW(str, size, o){
+  o = o || {}; const sq = o.sq == null ? 0.80 : o.sq;
+  x.save();
+  if (o.mono) setMono(size, o.weight || 'bold'); else setDisp(size, o.weight);
+  const w = trackedW(str, o.track || 0) * sq;
+  x.restore(); return w;
+}
+function glow(color, blur, fn){ x.save(); x.shadowColor = color; x.shadowBlur = blur; fn(); x.restore(); }
+
+/* ---------- virtual camera ---------- */
+let CAM = { x:0, y:0, scale:1, rot:0, blur:0 };
+function camReset(){ CAM = { x:0, y:0, scale:1, rot:0, blur:0 }; }
+/* Handheld float present on every shot — static frames read as amateur. */
+function camHandheld(t, amt){
+  CAM.x   += drift(t, 1) * 5.0 * amt;
+  CAM.y   += drift(t+11, 2) * 4.0 * amt;
+  CAM.rot += drift(t+23, 3) * 0.0018 * amt;
+  CAM.scale *= 1 + 0.0025 * amt;
+}
+function camApply(){
+  x.translate(W/2 + CAM.x, H/2 + CAM.y);
+  x.rotate(CAM.rot);
+  x.scale(CAM.scale, CAM.scale);
+  x.translate(-W/2, -H/2);
+}
+
+/* ---------- atmosphere ---------- */
+function fogBank(t, y0, h, alpha, speed, seed, col){
+  if (alpha <= 0.002) return;
+  const r = prng(seed);
+  x.save(); x.globalAlpha = alpha; x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 7; i++){
+    const w0 = 500 + r()*800, px = ((r()*2400 + t*speed*(0.5+r())) % (W + w0*2)) - w0;
+    const py = y0 + r()*h, rr = w0*0.5;
+    const g = x.createRadialGradient(px, py, 0, px, py, rr);
+    g.addColorStop(0, col || 'rgba(60,140,40,0.11)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, rr, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+function rain(t, n, amount, slant){
+  if (amount <= 0.002) return;
+  const r = prng(5150);
+  x.save(); x.globalAlpha = amount; x.strokeStyle = 'rgba(200,230,190,0.30)'; x.lineCap='round';
+  const N = 150;
+  for (let i = 0; i < N; i++){
+    const depth = 0.35 + r()*0.65;
+    const sp = 900*depth, len = 16 + 30*depth;
+    const px = (r()*W*1.3 - W*0.15 + t*slant*depth*60) % (W*1.3) - W*0.1;
+    const py = ((r()*H + t*sp) % (H + 200)) - 100;
+    x.globalAlpha = amount * depth * 0.6;
+    x.lineWidth = depth*1.9;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px - slant*len*0.4, py + len); x.stroke();
+  }
+  x.restore();
+}
+function embers(t, amount, seed){
+  if (amount <= 0.002) return;
+  const r = prng(seed || 2200);
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 60; i++){
+    const depth = 0.3 + r()*0.7, sp = 24*depth;
+    const px = (r()*W + Math.sin(t*0.5 + i)*40*depth) % W;
+    const py = ((r()*H*1.3 - t*sp) % (H+140)) + (H+70) - ((r()*H*1.3 - t*sp) % (H+140) < 0 ? 0 : H+140) + H*0.1;
+    const yy = ((py % (H+140)) + (H+140)) % (H+140) - 70;
+    const sz = 1.0 + depth*2.4;
+    const fl = 0.35 + 0.65*Math.abs(Math.sin(t*2.2 + i*1.7));
+    x.globalAlpha = amount * depth * fl * 0.75;
+    x.fillStyle = i % 5 === 0 ? C.chrome : C.lime;
+    x.beginPath(); x.arc(px, yy, sz, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+/* Depth-of-field bokeh discs drifting in the foreground. */
+function bokeh(t, amount, seed){
+  if (amount <= 0.002) return;
+  const r = prng(seed || 3300);
+  x.save(); x.globalCompositeOperation = 'lighter'; x.filter = 'blur(6px)';
+  for (let i = 0; i < 14; i++){
+    const depth = 0.4 + r()*0.6;
+    const px = (r()*W + t*16*depth) % (W+240) - 120;
+    const py = r()*H + Math.sin(t*0.4 + i*2.1)*26;
+    const rr = 14 + depth*46;
+    x.globalAlpha = amount * (0.05 + depth*0.09);
+    x.fillStyle = i % 4 === 0 ? C.chrome : C.lime;
+    x.beginPath(); x.arc(px, py, rr, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+/* Anamorphic flare: horizontal streak + warm core, as a bright lens would give. */
+function flare(px, py, strength, width, tint){
+  if (strength <= 0.002) return;
+  x.save(); x.globalCompositeOperation = 'lighter';
+  const g = x.createLinearGradient(px - width, py, px + width, py);
+  g.addColorStop(0.0,'rgba(0,0,0,0)');
+  g.addColorStop(0.5, tint || 'rgba(150,255,105,0.42)');
+  g.addColorStop(1.0,'rgba(0,0,0,0)');
+  x.globalAlpha = strength; x.fillStyle = g;
+  x.fillRect(px - width, py - 2.5, width*2, 5);
+  x.globalAlpha = strength*0.55;
+  x.fillRect(px - width*0.55, py - 1, width*1.1, 2);
+  const rg = x.createRadialGradient(px,py,0,px,py,width*0.16);
+  rg.addColorStop(0,'rgba(255,255,255,0.75)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  x.globalAlpha = strength; x.fillStyle = rg;
+  x.beginPath(); x.arc(px,py,width*0.16,0,Math.PI*2); x.fill();
+  x.restore();
+}
+/* Light shafts from a point — cheap volumetric. */
+function shafts(t, px, py, strength, count, len, tint){
+  if (strength <= 0.002) return;
+  const r = prng(7700);
+  x.save(); x.globalCompositeOperation = 'lighter'; x.translate(px,py);
+  for (let i = 0; i < count; i++){
+    const a0 = r()*Math.PI*2, wob = Math.sin(t*0.5 + i*1.3)*0.05;
+    const wdt = (0.012 + r()*0.05);
+    x.save(); x.rotate(a0 + wob);
+    const g = x.createLinearGradient(0,0,len,0);
+    g.addColorStop(0, tint || 'rgba(120,240,60,0.26)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.globalAlpha = strength * (0.35 + r()*0.65);
+    x.fillStyle = g;
+    x.beginPath(); x.moveTo(0,0); x.lineTo(len, -len*wdt); x.lineTo(len, len*wdt); x.closePath(); x.fill();
+    x.restore();
+  }
+  x.restore();
+}
+
+/* ---------- media plates ---------- */
+/* Draws a footage/still plate for `slot`, cover-fitted with a slow push.
+   Returns false when no media is present so the caller draws its fallback. */
+function plate(slot, t, u, opts){
+  if (!hasPlate(slot)) return false;
+  opts = opts || {};
+  const m = MEDIA[slot];
+  const img = m.kind === 'video'
+    ? m.imgs[Math.min(m.imgs.length-1, Math.floor(u * m.imgs.length))] || m.imgs[0]
+    : m.imgs[0];
+  if (!img) return false;
+  const a = opts.alpha == null ? 1 : opts.alpha;
+  const zoom = mix(opts.z0 == null ? 1.06 : opts.z0, opts.z1 == null ? 1.16 : opts.z1, eInOut(u));
+  const panX = (opts.panX || 0) * (u - 0.5) * 2, panY = (opts.panY || 0) * (u - 0.5) * 2;
+  const dw = W*zoom, dh = H*zoom;
+  x.save();
+  if (opts.clip) { x.beginPath(); opts.clip(); x.clip(); }
+  x.globalAlpha = a;
+  if (opts.grade !== false) x.filter = opts.filter || 'saturate(74%) contrast(118%) brightness(84%)';
+  x.drawImage(img, (W-dw)/2 + panX, (H-dh)/2 + panY, dw, dh);
+  x.filter = 'none';
+  // grade toward the brand: green lift in shadows, crushed blacks
+  x.globalCompositeOperation = 'multiply'; x.globalAlpha = a*0.55;
+  const g = x.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#b9d7ad'); g.addColorStop(0.55,'#7fae72'); g.addColorStop(1,'#4d7a42');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+  x.globalCompositeOperation = 'lighter'; x.globalAlpha = a*0.10;
+  x.fillStyle = '#123a0c'; x.fillRect(0,0,W,H);
+  x.restore();
+  return true;
+}
+
+/* ---------- texture ---------- */
+const NOISE = [];
+(function(){
+  for (let k = 0; k < 12; k++){
+    const n = mk(256,256), nx = n.getContext('2d');
+    const img = nx.createImageData(256,256), d = img.data, r = prng(900 + k*53);
+    for (let i = 0; i < d.length; i += 4){ const v = 110 + (r()*150)|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+    nx.putImageData(img,0,0); NOISE.push(n);
+  }
+})();
+function grain(n, a){
+  const r = prng(n * 2654435761);
+  x.save(); x.globalCompositeOperation='overlay'; x.globalAlpha=a;
+  x.translate(-(r()*256)|0, -(r()*256)|0);
+  x.fillStyle = x.createPattern(NOISE[n % NOISE.length],'repeat');
+  x.fillRect(0,0,W+256,H+256); x.restore();
+  // a touch more grain in the shadows, as film does
+  x.save(); x.globalCompositeOperation='soft-light'; x.globalAlpha=a*0.5;
+  x.translate(-(r()*256)|0, -(r()*256)|0);
+  x.fillStyle = x.createPattern(NOISE[(n+5) % NOISE.length],'repeat');
+  x.fillRect(0,0,W+256,H+256); x.restore();
+}
+function vignette(s, warp){
+  const g = x.createRadialGradient(W/2,H/2,H*(warp||0.30),W/2,H/2,H*0.98);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(0.55,'rgba(0,0,0,'+(s*0.22)+')');
+  g.addColorStop(1,'rgba(0,0,0,'+s+')');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+}
+function letterbox(amt){
+  if (amt <= 0) return;
+  const h = Math.round(H*amt);
+  x.fillStyle = '#000'; x.fillRect(0,0,W,h); x.fillRect(0,H-h,W,h);
+}
+function flash(a, color){
+  if (a <= 0) return;
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=cl(a);
+  x.fillStyle = color || '#ffffff'; x.fillRect(0,0,W,H); x.restore();
+}
+function glitch(n, inten){
+  if (inten <= 0.001) return;
+  const r = prng(n*9176+13), slices = 5 + (r()*7|0);
+  for (let i = 0; i < slices; i++){
+    if (r() > inten) continue;
+    const sy = r()*H, sh = 6 + r()*70, dx = (r()-0.5)*150*inten;
+    x.drawImage(x.canvas, 0, sy, W, sh, dx, sy, W, sh);
+    if (r() > 0.68){
+      x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=0.26*inten;
+      x.fillStyle = C.lime; x.fillRect(dx, sy, W, sh); x.restore();
+    }
+  }
+}
+
+/* ---------- post stack ---------- */
+/* Isolates true highlights by raising the image to the 4th power through
+   successive multiply passes. A contrast() curve leaves far too much mid-tone
+   in the bloom and blows the frame out. */
+function brightPass(src){
+  b1.setTransform(1,0,0,1,0,0); b1.globalCompositeOperation='source-over'; b1.globalAlpha=1;
+  b1.filter='none'; b1.clearRect(0,0,BW,BH);
+  b1.drawImage(src, 0,0, BW,BH);
+  b2.setTransform(1,0,0,1,0,0); b2.globalCompositeOperation='source-over'; b2.globalAlpha=1;
+  b2.filter='none'; b2.clearRect(0,0,BW,BH);
+  b2.drawImage(B1,0,0);
+  b2.globalCompositeOperation='multiply'; b2.drawImage(B1,0,0);        // ^2
+  b1.globalCompositeOperation='source-over'; b1.clearRect(0,0,BW,BH);
+  b1.drawImage(B2,0,0);
+  b1.globalCompositeOperation='multiply'; b1.drawImage(B2,0,0);        // ^4
+  b1.globalCompositeOperation='source-over';
+}
+function blurSmall(dstCtx, srcCanvas, px){
+  dstCtx.setTransform(1,0,0,1,0,0); dstCtx.globalCompositeOperation='source-over'; dstCtx.globalAlpha=1;
+  dstCtx.clearRect(0,0,BW,BH);
+  dstCtx.filter = 'blur('+px+'px)'; dstCtx.drawImage(srcCanvas,0,0); dstCtx.filter='none';
+}
+function bloomPass(dst, intensity, halation){
+  if (intensity <= 0.002 && halation <= 0.002) return;
+  brightPass(SCN);
+  dst.save(); dst.globalCompositeOperation='lighter'; dst.imageSmoothingQuality='high';
+  if (intensity > 0.002){ blurSmall(b3, B1, 5); dst.globalAlpha = intensity; dst.drawImage(B3,0,0,W,H); }
+  if (halation > 0.002){
+    blurSmall(b3, B1, 18);
+    dst.globalAlpha = halation; dst.filter = 'saturate(140%)';
+    dst.drawImage(B3,0,0,W,H); dst.filter='none';
+  }
+  dst.restore();
+}
+/* Radial smear of the bright pass away from a light point. */
+function godrays(dst, lx, ly, strength, decay){
+  if (strength <= 0.002) return;
+  brightPass(SCN);
+  b3.setTransform(1,0,0,1,0,0); b3.globalCompositeOperation='source-over'; b3.globalAlpha=1;
+  b3.clearRect(0,0,BW,BH);
+  b3.globalCompositeOperation = 'lighter';
+  const cx = lx/4, cy = ly/4; let a = 1;
+  for (let i = 0; i < 14; i++){
+    const s = 1 + i*0.028;
+    b3.globalAlpha = a*0.085;
+    b3.save(); b3.translate(cx,cy); b3.scale(s,s); b3.translate(-cx,-cy);
+    b3.drawImage(B1,0,0); b3.restore();
+    a *= (decay || 0.90);
+  }
+  dst.save(); dst.globalCompositeOperation='lighter'; dst.globalAlpha=strength;
+  dst.filter='blur(2px)'; dst.drawImage(B3,0,0,W,H); dst.filter='none'; dst.restore();
+}
+/* Radial chromatic aberration — zero at centre, strongest at the frame edge. */
+function aberration(src, dst, px){
+  dst.setTransform(1,0,0,1,0,0); dst.globalAlpha=1;
+  if (px < 0.05){
+    dst.globalCompositeOperation='source-over'; dst.drawImage(src,0,0); return;
+  }
+  dst.globalCompositeOperation='source-over';
+  dst.fillStyle='#000'; dst.fillRect(0,0,W,H);
+  dst.globalCompositeOperation='lighter';
+  const chans = [['#ff0000',-px], ['#00ff00',0], ['#0000ff',px]];
+  for (const ch of chans){
+    chn.setTransform(1,0,0,1,0,0); chn.globalCompositeOperation='source-over'; chn.globalAlpha=1;
+    chn.clearRect(0,0,W,H); chn.drawImage(src,0,0);
+    chn.globalCompositeOperation='multiply'; chn.fillStyle=ch[0]; chn.fillRect(0,0,W,H);
+    const s = 1 + ch[1]*0.00075;
+    dst.save(); dst.translate(W/2,H/2); dst.scale(s,s); dst.translate(-W/2,-H/2);
+    dst.drawImage(CHN,0,0); dst.restore();
+  }
+}
+/* Directional smear for whip pans — canvas filters only do gaussian. */
+function dirBlur(src, dst, dx, dy, steps){
+  dst.setTransform(1,0,0,1,0,0); dst.globalCompositeOperation='source-over'; dst.globalAlpha=1;
+  dst.clearRect(0,0,W,H);
+  dst.globalCompositeOperation='lighter';
+  const n = steps || 7;
+  for (let i = 0; i < n; i++){
+    const f = (i/(n-1) - 0.5) * 2;
+    dst.globalAlpha = 1/n;
+    dst.drawImage(src, dx*f, dy*f);
+  }
+  dst.globalCompositeOperation='source-over'; dst.globalAlpha=1;
+}
+
+/* ---------- world ---------- */
+function bgBase(){
+  x.fillStyle = C.bg; x.fillRect(0,0,W,H);
+  const g = x.createRadialGradient(W*0.5,H*0.80,60,W*0.5,H*0.80,W*0.82);
+  g.addColorStop(0,'rgba(34,150,20,0.20)'); g.addColorStop(0.5,'rgba(9,20,9,0.55)');
+  g.addColorStop(1,'rgba(5,12,5,0)');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+}
+function gridHorizon(t, alpha){
+  if (alpha <= 0.001) return;
+  const hz = H*0.575;
+  x.save(); x.globalAlpha = alpha;
+  const g = x.createLinearGradient(0,hz-300,0,hz+6);
+  g.addColorStop(0,'rgba(87,238,17,0)'); g.addColorStop(0.6,'rgba(87,238,17,0.13)');
+  g.addColorStop(1,'rgba(87,238,17,0.48)');
+  x.fillStyle=g; x.fillRect(0,hz-300,W,306);
+  x.strokeStyle='rgba(87,238,17,0.26)'; x.lineWidth=1.5;
+  for (let i=-16;i<=16;i++){ x.beginPath(); x.moveTo(W/2+i*38,hz); x.lineTo(W/2+i*620,H+60); x.stroke(); }
+  for (let k=0;k<18;k++){
+    const p = ((k/18) + t*0.13) % 1, yy = hz + Math.pow(p,2.7)*(H-hz+70);
+    x.globalAlpha = alpha*(0.06+0.46*p);
+    x.beginPath(); x.moveTo(0,yy); x.lineTo(W,yy); x.stroke();
+  }
+  x.globalAlpha=alpha; x.strokeStyle='rgba(230,233,228,0.5)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(0,hz); x.lineTo(W,hz); x.stroke();
+  x.restore();
+}
+/* Three parallax skyline layers with fog between them. */
+function skyline(t, alpha, par){
+  if (alpha <= 0.001) return;
+  const hz = H*0.575;
+  const LAY = [
+    {seed:4400, sp:10,  col:'#020502', h0:60,  hr:140, a:1.00, w:34},
+    {seed:4531, sp:22,  col:'#071207', h0:120, hr:230, a:0.80, w:44},
+    {seed:4677, sp:40,  col:'#0d1f0c', h0:190, hr:300, a:0.55, w:58}
+  ];
+  for (let L = LAY.length-1; L >= 0; L--){
+    const o = LAY[L], r = prng(o.seed), off = (t*o.sp + (par||0)*o.sp*0.5) % 420;
+    x.save(); x.globalAlpha = alpha*o.a; x.fillStyle = o.col;
+    x.beginPath(); x.moveTo(-120,hz);
+    let px = -120 - off;
+    while (px < W+460){
+      const bw = o.w + r()*86, bh = o.h0 + r()*o.hr;
+      x.lineTo(px,hz-bh); x.lineTo(px+bw,hz-bh); px += bw + 6 + r()*18; x.lineTo(px,hz);
+    }
+    x.lineTo(W+460,hz); x.lineTo(W+460,hz+4); x.lineTo(-120,hz+4);
+    x.closePath(); x.fill();
+    // lit windows
+    const r2 = prng(o.seed+7); x.globalAlpha = alpha*o.a*0.5;
+    for (let i=0;i<70;i++){
+      const wx = ((r2()*(W+420)) - off) , wy = hz - r2()*(o.h0+o.hr)*0.9;
+      if (wy > hz-14) continue;
+      x.fillStyle = r2() > 0.78 ? C.lime : 'rgba(150,210,120,0.55)';
+      x.globalAlpha = alpha*o.a*(0.12+r2()*0.42);
+      x.fillRect(wx, wy, 3, 5);
+    }
+    x.restore();
+    if (L > 0) fogBank(t, hz-180, 170, alpha*0.55, o.sp*0.6, o.seed+91, 'rgba(70,150,50,0.10)');
+  }
+}
+
+/* ---------- broadcast chrome (drawn after post, stays sharp) ---------- */
+function chromeUI(t, n, alpha, lb){
+  if (alpha <= 0.001) return;
+  const pad = Math.round(H*lb);
+  x.save(); x.globalAlpha = alpha;
+  const m = 56, L = 34, top = m + pad, bot = H - m - pad;
+  x.strokeStyle='rgba(230,233,228,0.30)'; x.lineWidth=2;
+  const cor=(cx,cy,sx,sy)=>{x.beginPath();x.moveTo(cx+sx*L,cy);x.lineTo(cx,cy);x.lineTo(cx,cy+sy*L);x.stroke();};
+  cor(m,top,1,1); cor(W-m,top,-1,1); cor(m,bot,1,-1); cor(W-m,bot,-1,-1);
+  if (IMG.mark){
+    x.save(); x.globalAlpha = alpha*0.9; x.drawImage(IMG.mark, m+2, top+6, 46, 46); x.restore();
+    ctext('MAINSTREET RP', m+60, top+36, 19, {mono:true,align:'left',track:4.5,sq:1,color:'rgba(230,233,228,0.74)'});
+  } else {
+    ctext('MAINSTREET RP', m+2, top+30, 19, {mono:true,align:'left',track:4.5,sq:1,color:'rgba(230,233,228,0.74)'});
+  }
+  const tc = '00:'+String(Math.floor(n/FPS)).padStart(2,'0')+':'+String(n%FPS).padStart(2,'0');
+  ctext(tc, W-m-2, top+36, 19, {mono:true,align:'right',track:4.5,sq:1,color:'rgba(87,238,17,0.74)'});
+  x.globalAlpha = alpha*((Math.floor(t*2)%2)===0?1:0.22);
+  x.fillStyle=C.lime; x.beginPath(); x.arc(W-m-158, top+29, 6, 0, Math.PI*2); x.fill();
+  x.globalAlpha=alpha*0.22; x.fillStyle='rgba(230,233,228,0.5)'; x.fillRect(m,bot-2,W-m*2,2);
+  x.globalAlpha=alpha*0.95; x.fillStyle=C.lime; x.fillRect(m,bot-2,(W-m*2)*cl(t/DURATION),2);
+  x.restore();
+}
+
+/* ---------- section furniture ---------- */
+function sectionHead(u, num, label){
+  x.save(); x.globalAlpha = band(u,0,1,0.10,0.12)*0.05;
+  ctext(num, 118, H-92, 430, {align:'left', sq:0.70, color:C.chrome});
+  x.restore();
+  const la = band(u,0.02,1,0.08,0.10);
+  x.save(); x.globalAlpha = la;
+  x.fillStyle=C.lime; x.fillRect(126, 199, 7 + 56*eOutExpo((u-0.02)/0.10), 17);
+  ctext('// '+label, 208, 214, 23, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+  x.restore();
+}
+function bulletList(u, items, bx, by, step, t0){
+  for (let i=0;i<items.length;i++){
+    const s = t0 + i*0.075, a = band(u,s,1,0.07,0.11);
+    if (a <= 0.002) continue;
+    const p = eOutQuint((u-s)/0.09), yy = by + i*step;
+    x.save(); x.globalAlpha=a; x.translate((1-p)*-34,0);
+    x.fillStyle=C.lime; x.fillRect(bx, yy-10, 20, 4);
+    ctext(items[i], bx+40, yy, 31, {align:'left',sq:0.84,track:1,color:'rgba(230,233,228,0.94)'});
+    x.restore();
+  }
+}
+/* Frosted panel — gives UI mocks real depth against the plate behind. */
+function panel(px,py,pw,ph,alpha,accent){
+  x.save(); x.globalAlpha = alpha;
+  x.fillStyle='rgba(6,14,6,0.80)'; x.fillRect(px,py,pw,ph);
+  const g = x.createLinearGradient(px,py,px,py+ph);
+  g.addColorStop(0,'rgba(87,238,17,0.10)'); g.addColorStop(1,'rgba(87,238,17,0)');
+  x.fillStyle=g; x.fillRect(px,py,pw,ph);
+  x.strokeStyle='rgba(87,238,17,0.34)'; x.lineWidth=2; x.strokeRect(px+0.5,py+0.5,pw-1,ph-1);
+  if (accent !== false){ x.fillStyle=C.lime; x.fillRect(px,py,pw,4); }
+  x.restore();
+}
+
+const WRK = mk(W,H), wrk = WRK.getContext('2d');
+let PD = {};                       // per-frame dynamic post overrides
+
+/* =======================================================================
+   DISCORD SERVER BANNER — a seamless loop.
+   Every moving thing is a function of loop phase p = t/T in [0,1) with an
+   integer number of cycles per loop, so frame TOTAL wraps exactly onto
+   frame 0. The road moves 182 world units per loop: the LCM of the dash
+   spacing (14) and the lamp spacing (26), and buildings tile every 182.
+
+   Discord's guidance (support.discord.com, "Server Banners"):
+     960x540 min, 16:9; PNG/JPG/GIF <= 10 MB; static = Boost L2, animated = L3;
+     keep the top 48px simple — the server name is drawn over it;
+     avoid logos/text — so the only mark here is the badge as key art.
+   On desktop it renders ~240px wide, so the composition is one bold idea:
+   leading lines converging on the badge.
+   ======================================================================= */
+
+const T_LOOP = 4.0;                        // seconds per loop
+const LOOP_Z = 182;                        // world units travelled per loop
+const MODE = (new URLSearchParams(location.search)).get('mode') || 'gif';   // 'gif' | 'still'
+const TAU = Math.PI*2;
+
+const RD = { f: 1050, camH: 2.5, roadHalf: 7.6, horizonY: 0.68 };
+function roadProject(wx, wy, wz){
+  const z = Math.max(wz, 0.35), sc = RD.f / z;
+  return { x: W/2 + wx*sc, y: H*RD.horizonY + (RD.camH - wy)*sc, sc };
+}
+function fogAt(z){ return Math.max(0, Math.min(1, 1 - (z - 12)/230)); }
+function drawLamp(px, py, r, a, col){
+  if (a <= 0.004 || r <= 0.2) return;
+  r = Math.min(r, 210);
+  const g = x.createRadialGradient(px,py,0,px,py,r);
+  g.addColorStop(0, col || 'rgba(255,248,214,0.95)');
+  g.addColorStop(0.25,'rgba(255,230,150,0.40)');
+  g.addColorStop(1,'rgba(255,200,90,0)');
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=a;
+  x.fillStyle=g; x.beginPath(); x.arc(px,py,r,0,TAU); x.fill(); x.restore();
+}
+function wetSmear(px, py, w, h, a, col){
+  if (a <= 0.004) return;
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=a;
+  const g = x.createLinearGradient(px,py,px,py+h);
+  g.addColorStop(0,col); g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g; x.fillRect(px-w/2,py,w,h); x.restore();
+}
+
+/* Buildings: one 182-unit tile per side, repeated. */
+const BLDG = (function(){
+  const r = prng(90210), out = [];
+  for (const side of [-1,1]){
+    let z = 0;
+    while (z < LOOP_Z - 4){
+      const w = 8 + r()*12;
+      out.push({ side, z0: z, w, off: RD.roadHalf + 6 + r()*30, h: 14 + r()*58, tone: r(), seed: (r()*1e6)|0 });
+      z += w + 3 + r()*6;
+    }
+  }
+  return out;
+})();
+
+function bannerScene(p, n){
+  const camZ = p * LOOP_Z;
+  const hy = H*RD.horizonY;
+
+  /* sky — kept near-black at the top for the server-name overlay */
+  const sky = x.createLinearGradient(0,0,0,hy+10);
+  sky.addColorStop(0,'#010302'); sky.addColorStop(0.55,'#030904'); sky.addColorStop(1,'#0b2210');
+  x.fillStyle=sky; x.fillRect(0,0,W,hy+10);
+  const glowA = 0.92 + 0.08*Math.sin(p*TAU*2);
+  const hz = x.createRadialGradient(W/2, hy, 10, W/2, hy, W*0.36);
+  hz.addColorStop(0,'rgba(120,255,70,'+(0.34*glowA)+')');
+  hz.addColorStop(0.4,'rgba(70,180,45,'+(0.10*glowA)+')');
+  hz.addColorStop(1,'rgba(0,0,0,0)');
+  x.save(); x.globalCompositeOperation='lighter'; x.fillStyle=hz; x.fillRect(0,0,W,H); x.restore();
+
+  /* ground */
+  x.fillStyle='#030604'; x.fillRect(0,hy,W,H-hy);
+
+  /* buildings, far to near */
+  const inst = [];
+  for (const b of BLDG) for (let j=0;j<3;j++){
+    const z = b.z0 + j*LOOP_Z - camZ;
+    if (z > 1.2 && z < 260) inst.push([z,b]);
+  }
+  inst.sort((a,b)=>b[0]-a[0]);
+  for (const [z,b] of inst){
+    const f = fogAt(z);
+    const nx = b.side*b.off, fx = b.side*(b.off + b.w);
+    const a1=roadProject(nx,0,z), a2=roadProject(nx,b.h,z);
+    const b1=roadProject(fx,0,z+b.w*0.8), b2=roadProject(fx,b.h,z+b.w*0.8);
+    x.save(); x.globalAlpha = 0.97*f;
+    x.fillStyle = b.tone > 0.7 ? '#0b170d' : '#060c08';
+    x.beginPath(); x.moveTo(a1.x,a1.y); x.lineTo(a2.x,a2.y); x.lineTo(b2.x,b2.y); x.lineTo(b1.x,b1.y); x.closePath(); x.fill();
+    // rim light from the vanishing-point glow
+    x.strokeStyle='rgba(110,230,70,'+(0.22*f)+')'; x.lineWidth=Math.max(1,a2.sc*0.04);
+    x.beginPath(); x.moveTo(a1.x,a1.y); x.lineTo(a2.x,a2.y); x.stroke();
+    if (z < 170){
+      const wr = prng(b.seed);
+      const rows = Math.max(2, Math.floor(b.h/3.3)), cols = Math.max(1, Math.floor(b.w/3.0));
+      for (let rr=0; rr<rows; rr++) for (let c=0; c<cols; c++){
+        const on = wr() < 0.42, lime = wr() > 0.72, lv = wr();
+        if (!on) continue;
+        const pp = roadProject(nx, 2.0 + rr*3.2, z + c*2.8 + 0.6);
+        const sz = Math.max(1, pp.sc*0.095);
+        x.globalAlpha = f*(0.5 + lv*0.5);
+        x.fillStyle = lime ? '#57ee11' : 'rgba(210,250,190,0.95)';
+        x.fillRect(pp.x - sz/2, pp.y - sz*1.6, sz, sz*1.8);
+      }
+    }
+    x.restore();
+  }
+
+  /* road */
+  const nearZ=2.0, farZ=250;
+  const rl1=roadProject(-RD.roadHalf,0,nearZ), rr1=roadProject(RD.roadHalf,0,nearZ);
+  const rl2=roadProject(-RD.roadHalf,0,farZ),  rr2=roadProject(RD.roadHalf,0,farZ);
+  const rg = x.createLinearGradient(0,hy,0,H);
+  rg.addColorStop(0,'#0b1a10'); rg.addColorStop(0.5,'#080f0a'); rg.addColorStop(1,'#0e1a10');
+  x.fillStyle=rg;
+  x.beginPath(); x.moveTo(rl2.x,rl2.y); x.lineTo(rr2.x,rr2.y); x.lineTo(rr1.x,rr1.y); x.lineTo(rl1.x,rl1.y); x.closePath(); x.fill();
+  // neon kerbs — the leading lines into the badge
+  for (const sgn of [-1,1]){
+    const e1=roadProject(sgn*RD.roadHalf,0,nearZ), e2=roadProject(sgn*RD.roadHalf,0,farZ);
+    x.save(); x.globalCompositeOperation='lighter';
+    glow('#57ee11', 18, ()=>{ x.strokeStyle='rgba(87,238,17,0.85)'; x.lineWidth=3; x.beginPath(); x.moveTo(e1.x,e1.y); x.lineTo(e2.x,e2.y); x.stroke(); });
+    x.restore();
+  }
+  // centre dashes (period 14 -> 13 per loop)
+  const dashEvery=14, dashLen=5;
+  for (let k=-1;k<20;k++){
+    const wz = k*dashEvery - (camZ % dashEvery);
+    if (wz < nearZ || wz > 210) continue;
+    const f=fogAt(wz);
+    const p1=roadProject(0,0.01,wz), p2=roadProject(0,0.01,wz+dashLen);
+    const wN=Math.max(1.5,0.34*p1.sc), wF=Math.max(0.8,0.34*p2.sc);
+    x.save(); x.globalAlpha=0.8*f; x.fillStyle='rgba(235,250,220,1)';
+    x.beginPath(); x.moveTo(p1.x-wN/2,p1.y); x.lineTo(p1.x+wN/2,p1.y); x.lineTo(p2.x+wF/2,p2.y); x.lineTo(p2.x-wF/2,p2.y); x.closePath(); x.fill();
+    x.restore();
+    wetSmear(p1.x, p1.y, wN*1.4, wN*5, 0.10*f, 'rgba(200,255,180,0.5)');
+  }
+  // streetlights (period 26 -> 7 per loop)
+  const LS=26;
+  for (let k=-1;k<11;k++){
+    const wz = k*LS - (camZ % LS);
+    if (wz < 1.0 || wz > 250) continue;
+    const f=fogAt(wz);
+    for (const sgn of [-1,1]){
+      const bx=sgn*(RD.roadHalf+1.3);
+      const foot=roadProject(bx,0,wz), head=roadProject(bx,8.4,wz), arm=roadProject(bx-sgn*2.4,8.2,wz);
+      x.save(); x.globalAlpha=0.85*f; x.strokeStyle='#142519'; x.lineWidth=Math.max(1,0.19*foot.sc);
+      x.beginPath(); x.moveTo(foot.x,foot.y); x.lineTo(head.x,head.y); x.lineTo(arm.x,arm.y); x.stroke(); x.restore();
+      const r=Math.max(2,1.5*arm.sc*0.55);
+      drawLamp(arm.x,arm.y,r*3.0,0.55*f);
+      x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=0.95*f; x.fillStyle='rgba(255,246,206,0.95)';
+      x.beginPath(); x.arc(arm.x,arm.y,Math.max(0.8,r*0.42),0,TAU); x.fill(); x.restore();
+      const pool=roadProject(bx-sgn*2.4,0,wz);
+      drawLamp(pool.x,pool.y,r*4.6,0.18*f,'rgba(255,240,180,0.55)');
+      wetSmear(pool.x,pool.y,Math.max(2,r*1.5),Math.max(6,r*7),0.22*f,'rgba(255,235,160,0.55)');
+    }
+  }
+
+  /* the car ahead — the loading-screen car, keeping pace with us */
+  {
+    const carZ = 15.5;
+    const sway = Math.sin(p*TAU)*0.35 + Math.sin(p*TAU*2)*0.12;
+    const bw=2.05, bh=1.42;
+    const bl=roadProject(sway-bw/2,0.18,carZ), br=roadProject(sway+bw/2,0.18,carZ);
+    const tl=roadProject(sway-bw/2,bh,carZ), tr=roadProject(sway+bw/2,bh,carZ);
+    const rL=roadProject(sway-bw*0.38,bh+0.52,carZ+0.55), rR=roadProject(sway+bw*0.38,bh+0.52,carZ+0.55);
+    const sp=roadProject(sway,0,carZ);
+    wetSmear(sp.x, sp.y-2, Math.abs(br.x-bl.x)*1.2, Math.abs(br.x-bl.x)*0.7, 0.16, 'rgba(190,240,170,0.35)');
+    x.save(); x.fillStyle='#050b06';
+    x.beginPath(); x.moveTo(bl.x,bl.y); x.lineTo(tl.x,tl.y); x.lineTo(rL.x,rL.y); x.lineTo(rR.x,rR.y); x.lineTo(tr.x,tr.y); x.lineTo(br.x,br.y); x.closePath(); x.fill();
+    x.strokeStyle='rgba(120,220,100,0.35)'; x.lineWidth=Math.max(1,0.05*bl.sc); x.stroke(); x.restore();
+    const lampR=Math.max(1.4,0.16*bl.sc);
+    for (const s2 of [-1,1]){
+      const lp=roadProject(sway+s2*bw*0.40,0.92,carZ);
+      x.save(); x.globalCompositeOperation='lighter'; x.fillStyle='rgba(255,60,40,0.95)';
+      x.beginPath(); x.ellipse(lp.x,lp.y,lampR*1.5,lampR*0.72,0,0,TAU); x.fill(); x.restore();
+      drawLamp(lp.x,lp.y,lampR*7,0.40,'rgba(255,70,45,0.85)');
+      const rf=roadProject(sway+s2*bw*0.40,0,carZ);
+      wetSmear(rf.x,rf.y,lampR*2.4,lampR*12,0.30,'rgba(255,60,40,0.55)');
+    }
+  }
+
+  /* speed streaks from the vanishing point — 2 cycles per loop */
+  {
+    const sr = prng(8842);
+    x.save(); x.globalCompositeOperation='lighter';
+    for (let i=0;i<70;i++){
+      const ang = sr()*TAU, r0 = sr(), len = 60 + sr()*240, lime = sr() > 0.72, w0 = 0.8 + sr()*1.6, a0 = 0.05 + sr()*0.14;
+      const rr = 80 + ((r0 + p*2) % 1)*900;
+      const fade = Math.sin(((r0 + p*2) % 1)*Math.PI);
+      const px = W/2 + Math.cos(ang)*rr, py = hy + Math.sin(ang)*rr*0.5;
+      x.globalAlpha = a0*fade; x.strokeStyle = lime ? '#57ee11' : 'rgba(220,255,200,0.8)'; x.lineWidth = w0;
+      x.beginPath(); x.moveTo(px,py); x.lineTo(px+Math.cos(ang)*len, py+Math.sin(ang)*len*0.5); x.stroke();
+    }
+    x.restore();
+  }
+
+  /* rain — each layer falls an integer number of screen-heights per loop.
+     Still only: full-frame streaks force a full-frame GIF update every frame
+     (12.95 MB with rain vs Discord's 10 MB cap) and are invisible at 240px. */
+  if (MODE === 'still') {
+    const rr = prng(5150);
+    x.save(); x.strokeStyle='rgba(200,235,190,0.35)'; x.lineCap='round';
+    for (let i=0;i<120;i++){
+      const depth = 0.35 + rr()*0.65, cyc = 1 + Math.floor(depth*3), x0 = rr()*W, y0 = rr();
+      const yy = ((y0 + p*cyc) % 1)*(H+120) - 60, len = 14 + 26*depth;
+      x.globalAlpha = 0.35*depth; x.lineWidth = depth*1.7;
+      x.beginPath(); x.moveTo(x0, yy); x.lineTo(x0 - len*0.18, yy + len); x.stroke();
+    }
+    x.restore();
+  }
+
+  /* the badge — key art at the convergence point */
+  const bcy = H*0.425 + Math.sin(p*TAU)*6;
+  x.save(); x.translate(W/2, bcy);
+  const rings = [[215, 1, 0.30], [243, -1, 0.19], [272, 2, 0.12]];
+  for (const [rad, turns, a] of rings){
+    x.globalAlpha = a; x.strokeStyle = '#57ee11'; x.lineWidth = 2.5;
+    const a0 = p*TAU*turns;
+    x.beginPath(); x.arc(0,0,rad,a0,a0+Math.PI*1.2); x.stroke();
+    x.beginPath(); x.arc(0,0,rad,a0+Math.PI*1.45,a0+Math.PI*1.75); x.stroke();
+  }
+  x.restore();
+  if (IMG.badge){
+    const sz = 380;
+    // dark disc so the badge separates cleanly from the road behind it
+    x.save(); const dg = x.createRadialGradient(W/2,bcy,sz*0.44,W/2,bcy,sz*0.58);
+    dg.addColorStop(0,'rgba(0,0,0,0.85)'); dg.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=dg; x.beginPath(); x.arc(W/2,bcy,sz*0.58,0,TAU); x.fill(); x.restore();
+    x.save();
+    glow('rgba(87,238,17,'+(0.55+0.15*Math.sin(p*TAU*2))+')', 46, ()=>x.drawImage(IMG.badge, W/2-sz/2, bcy-sz/2, sz, sz));
+    x.restore();
+    // a highlight that circles the rim once per loop
+    x.save(); x.globalCompositeOperation='lighter';
+    const ha = p*TAU - Math.PI/2, hx = W/2 + Math.cos(ha)*sz*0.47, hyy = bcy + Math.sin(ha)*sz*0.47;
+    const hg = x.createRadialGradient(hx,hyy,0,hx,hyy,64);
+    hg.addColorStop(0,'rgba(220,255,200,0.65)'); hg.addColorStop(1,'rgba(220,255,200,0)');
+    x.fillStyle=hg; x.beginPath(); x.arc(hx,hyy,64,0,TAU); x.fill(); x.restore();
+    flare(W/2, H*RD.horizonY, 0.30 + 0.06*Math.sin(p*TAU*2), W*0.46);   // flare on the horizon, under the badge
+  }
+
+  /* light column from the vanishing point up into the badge */
+  {
+    x.save(); x.globalCompositeOperation='lighter';
+    const cg = x.createLinearGradient(0, H*RD.horizonY, 0, bcy + 120);
+    cg.addColorStop(0,'rgba(120,255,70,0.30)'); cg.addColorStop(1,'rgba(120,255,70,0)');
+    x.fillStyle = cg;
+    x.beginPath(); x.moveTo(W/2-14, H*RD.horizonY); x.lineTo(W/2+14, H*RD.horizonY);
+    x.lineTo(W/2+90, bcy+120); x.lineTo(W/2-90, bcy+120); x.closePath(); x.fill();
+    x.restore();
+  }
+
+  /* embers rising — 1 or 2 cycles per loop */
+  {
+    const er = prng(2200);
+    x.save(); x.globalCompositeOperation='lighter';
+    for (let i=0;i<50;i++){
+      const depth=0.3+er()*0.7, cyc=1+(er()>0.5?1:0), x0=er()*W, y0=er(), ph=er()*TAU, sz=1+depth*2.6;
+      const yy = (1 - ((y0 + p*cyc) % 1))*(H+60) - 30;
+      const xx = x0 + Math.sin(p*TAU*cyc + ph)*30*depth;
+      x.globalAlpha = depth*(0.45+0.4*Math.sin(p*TAU*3+ph));
+      x.fillStyle = i%5===0 ? '#e6e9e4' : '#57ee11';
+      x.beginPath(); x.arc(xx,yy,sz,0,TAU); x.fill();
+    }
+    x.restore();
+  }
+
+  /* keep the top band calm for Discord's server-name overlay
+     (top 48px at 960x540 = 96px here) */
+  // In the desktop sidebar the banner shows ~240x135 and Discord's 48px
+  // header (server name) sits over it — roughly the top third. Darken that
+  // band so the name stays legible; the badge's wordmark sits below it.
+  const tb = x.createLinearGradient(0,0,0,H*0.36);
+  tb.addColorStop(0,'rgba(0,0,0,0.80)'); tb.addColorStop(0.55,'rgba(0,0,0,0.35)'); tb.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=tb; x.fillRect(0,0,W,H*0.36);
+
+  vignette(0.62);
+}
+
+window.renderFrame = function(n){
+  const p = (n % TOTAL) / TOTAL;
+  x = scn;
+  x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation='source-over'; x.filter='none';
+  bannerScene(p, n);
+  aberration(SCN, tmp, 1.3);
+  godrays(tmp, W/2, H*RD.horizonY, 0.10, 0.90);
+  bloomPass(tmp, 0.24, 0.12);
+  out.setTransform(1,0,0,1,0,0); out.globalAlpha=1; out.globalCompositeOperation='source-over';
+  out.fillStyle='#000'; out.fillRect(0,0,W,H);
+  out.save(); out.filter='contrast(108%) saturate(102%)'; out.drawImage(TMP,0,0); out.restore();
+  out.filter='none';
+  if (MODE === 'still'){ x = out; grain(n, 0.07); x = scn; }   // no grain in the GIF: it would wreck compression
+  return true;
+};
+window.TOTAL_FRAMES = TOTAL;
+window.FPS_OUT = FPS;
+window.ASSETS.then(() => window.renderFrame(0));
+</script></body></html>

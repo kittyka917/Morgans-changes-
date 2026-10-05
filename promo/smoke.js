@@ -22,11 +22,12 @@ srv.listen(0,'127.0.0.1',async()=>{
   console.log('fx engines:', JSON.stringify(await pg.evaluate(()=>window.FX ? window.FX.available : null)));
   for(const f of (process.env.PICKS||'105').split(',')){
     const n=parseInt(f);
-    const d=await pg.evaluate(async i=>{
+    const process_png = !!process.env.PNG;
+    const d=await pg.evaluate(async ([i, process_png])=>{
       if (window.prepFrame) await window.prepFrame(i);
       window.renderFrame(i);
-      return document.getElementById('stage').toDataURL('image/jpeg',0.95); }, n);
-    fs.writeFileSync(path.join(ROOT,(process.env.PREFIX||'sm_')+String(n).padStart(4,'0')+'.jpg'),
+      return document.getElementById('stage').toDataURL(process_png ? 'image/png' : 'image/jpeg', 0.95); }, [n, process_png]);
+    fs.writeFileSync(path.join(ROOT,(process.env.PREFIX||'sm_')+String(n).padStart(4,'0')+(process.env.PNG?'.png':'.jpg')),
                      Buffer.from(d.slice(d.indexOf(',')+1),'base64'));
     process.stdout.write('frame '+n+' ok\n');
   }
