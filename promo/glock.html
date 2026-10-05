@@ -661,11 +661,14 @@ function anchorAt(r, sx, sy){ return { x: r.x + sx*r.s, y: r.y + sy*r.s }; }
 
 /* Frame-blended slow motion: source seconds -> blend of the two nearest
    frames, so slow passages glide instead of stepping. */
-const GUN = mk(1440,1080), gun = GUN.getContext('2d');
+// Sized from the first frame, so glock/src can hold the render at 1440x1080 or
+// at its native 1920x1440. Placement uses the 1440x1080 logical size either way.
+let GUN = null, gun = null;
 function gunFrame(sec){
   const kf = 1 + sec*SRC_FPS, k0 = Math.floor(kf), f = kf - k0;
   const a = SRC(k0), b = f > 0.02 ? SRC(k0+1) : null;
   if (!a) return null;
+  if (!GUN || GUN.width !== a.naturalWidth){ GUN = mk(a.naturalWidth, a.naturalHeight); gun = GUN.getContext('2d'); }
   gun.globalCompositeOperation='source-over'; gun.globalAlpha=1; gun.filter='none';
   gun.drawImage(a,0,0);
   if (b){ gun.globalAlpha = f; gun.drawImage(b,0,0); gun.globalAlpha=1; }

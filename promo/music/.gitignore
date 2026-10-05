@@ -1,0 +1,4 @@
+# Your song stays local: drop it in as music/song.mp3
+*
+!.gitignore
+!README.md

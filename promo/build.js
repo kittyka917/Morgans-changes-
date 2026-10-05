@@ -16,6 +16,7 @@ const PAGE = process.env.PAGE || 'promo.html';
 const MEDIA = path.join(ROOT,'media'), CACHE = path.join(MEDIA,'_cache');
 const WORKERS = parseInt(process.env.WORKERS || '4', 10);
 const QUALITY = parseFloat(process.env.QUALITY || '0.96');
+const FMT = process.env.FMT === 'png' ? 'png' : 'jpg';   // FMT=png: lossless frames
 const FPS = 30;
 
 // slot -> seconds on screen, matching the SCENES table in promo.html
@@ -132,12 +133,13 @@ async function worker(id, from, to, base, manifest){
   const b = await chromium.launch({ args:['--force-device-scale-factor=1','--hide-scrollbars','--disable-lcd-text'] });
   const { pg, errs } = await openPage(b, base, manifest);
   for (let n = from; n < to; n++){
-    const d = await pg.evaluate(async ([i,q]) => {
+    const d = await pg.evaluate(async ([i,q,png]) => {
       if (window.prepFrame) await window.prepFrame(i);   // lazy source frames (glock.html)
       window.renderFrame(i);
-      return document.getElementById('stage').toDataURL('image/jpeg', q);
-    }, [n, QUALITY]);
-    fs.writeFileSync(path.join(OUT,'f'+String(n).padStart(5,'0')+'.jpg'),
+      return png ? document.getElementById('stage').toDataURL('image/png')
+                 : document.getElementById('stage').toDataURL('image/jpeg', q);
+    }, [n, QUALITY, FMT === 'png']);
+    fs.writeFileSync(path.join(OUT,'f'+String(n).padStart(5,'0')+'.'+FMT),
                      Buffer.from(d.slice(d.indexOf(',')+1),'base64'));
     if (id===0 && (n-from)%50===0) process.stdout.write('  w0 '+n+'/'+to+'\n');
   }
@@ -167,7 +169,7 @@ async function worker(id, from, to, base, manifest){
     worker(i, i*chunk, Math.min(total,(i+1)*chunk), base, manifest)))).flat();
   srv.close();
   if (errs.length) console.log('JS ERRORS:', errs.slice(0,5).join(' | '));
-  const got = fs.readdirSync(OUT).filter(f=>f.endsWith('.jpg')).length;
+  const got = fs.readdirSync(OUT).filter(f=>f.endsWith('.'+FMT)).length;
   console.log('done in', ((Date.now()-t0)/1000).toFixed(0)+'s;', got, 'of', total);
   if (got !== total){ console.error('FRAME COUNT MISMATCH'); process.exit(1); }
 })();

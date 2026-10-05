@@ -8,7 +8,8 @@
 
    For frame-exact offline rendering we need neither of those behaviours, so
    this module:
-     1. replaces performance.now() with a clock we step by exactly 1/FPS,
+     1. replaces performance.now() with a clock we step by exactly 1/FPS
+        (the page's window.FPS_OUT, 30 if unset),
         and queues requestAnimationFrame callbacks instead of running them,
         so engine `time` advances identically on every render; and
      2. shims drawElementImage()/requestPaint() on the source canvas, which
@@ -17,7 +18,6 @@
         no library edits, no experimental browser flag.
    ======================================================================= */
 
-const FRAME_MS = 1000 / 30;
 let clock = 0;
 let queue = [];
 
@@ -42,7 +42,7 @@ export function flush(){
   for (const cb of due) { if (cb) try { cb(clock); } catch(e) { console.error('rAF', e); } }
 }
 
-export function setFrame(n){ clock = n * FRAME_MS; }
+export function setFrame(n){ clock = n * 1000 / (window.FPS_OUT || 30); }
 
 /* Build the source/content/output trio an engine expects, with the shim in
    place. `paint` is called with the source 2D context to draw each frame. */
