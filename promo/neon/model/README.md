@@ -73,7 +73,7 @@ python render_sign.py -- model/morgies_neon_sign.blend model/render_hero.png her
 `morgies_neon_loop.mp4` is a seamless 3-second loop (1920×1080, 30 fps) with a quiet
 electrical hum: the sign hums, the **E** flickers out and back, the apostrophe
 sputters and the blossom breathes. The last frame runs straight into the first.
-`morgies_neon_loop.gif` is the same loop, smaller, for Discord.
+`morgies_neon_loop.gif` is the same loop at 960×540 (7 MB, under Discord's 10 MB), silent.
 
 How it's made: `render_sign.py ... passes` renders the sign once with a Cycles
 light group per letter. Light adds up linearly, so `loop.py` re-lights that single
