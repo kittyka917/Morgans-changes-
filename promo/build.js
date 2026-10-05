@@ -104,7 +104,8 @@ function ingest(){
   return manifest;
 }
 
-const TYPES = {'.html':'text/html','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'};
+const TYPES = {'.html':'text/html','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg',
+               '.webp':'image/webp','.js':'text/javascript','.mjs':'text/javascript'};
 function serve(){
   return new Promise(res => {
     const s = http.createServer((req, rs) => {
@@ -117,11 +118,12 @@ function serve(){
   });
 }
 async function openPage(b, base, manifest){
-  const pg = await b.newPage({ viewport:{width:1920,height:1080}, deviceScaleFactor:1 });
+  const pg = await b.newPage({ viewport:{width:1920,height:1080}, deviceScaleFactor:1,
+                               reducedMotion:'no-preference' });
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.addInitScript(m => { window.MEDIA_MANIFEST = m; }, manifest);
   await pg.goto(base + '/promo.html');
-  await pg.evaluate(() => window.ASSETS);
+  await pg.evaluate(() => window.ASSETS);   // resolves after fx engines load too
   await pg.waitForTimeout(200);
   return { pg, errs };
 }

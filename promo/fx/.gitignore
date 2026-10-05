@@ -1,0 +1,2 @@
+# Compiled output — rebuild with: cd fx && tsc -p tsconfig.json
+dist/

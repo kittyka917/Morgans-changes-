@@ -21,6 +21,21 @@ no video editor project to lose and no footage to re-license.
 The cut runs at 120 BPM with 2-second bars, and **every scene change lands on a
 bar line**, so the music hits the cuts rather than drifting against them.
 
+## WebGL effects
+
+Two [canvas-ui](https://canvasui.dev) engines run as part of the render:
+`Droplets` puts real refractive rain on the lens over the badge, the hook and
+the end card, and `Glitch` tears the montage cuts. They are driven frame-exactly
+off a stubbed clock so renders stay reproducible, and their source texture is
+fed through a shim rather than the experimental html-in-canvas API. The how and
+the two traps that cost real time are in [`fx/README.md`](fx/README.md).
+
+Build them once before the first render:
+
+```bash
+cd fx && tsc -p tsconfig.json && cd ..
+```
+
 ## Rendering it
 
 ```bash
