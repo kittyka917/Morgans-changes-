@@ -1,0 +1,780 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Morgan Profile Banner</title>
+<style>html,body{margin:0;padding:0;background:#000;overflow:hidden}#stage{display:block;width:1360px;height:480px}</style>
+</head><body>
+<canvas id="stage" width="1360" height="480"></canvas>
+<div id="fxhost" style="position:absolute;left:0;top:0;width:1360px;height:480px;z-index:-1"></div>
+
+<!-- canvas-ui WebGL effects. The promise is created in a classic script so the
+     main renderer below can await it; the module that resolves it is deferred. -->
+<script>window.__fxResolve=null; window.FXREADY=new Promise(r=>{window.__fxResolve=r;});</script>
+<script type="module">
+import { installClock, makeStage } from './fx/driver.js';
+installClock();                       // must precede any engine construction
+const FACTORIES = {};
+try {
+  FACTORIES.Droplets = (await import('./fx/dist/lib/Droplets/DropletsVanilla.js')).createDroplets;
+  FACTORIES.Glitch   = (await import('./fx/dist/lib/Glitch/GlitchVanilla.js')).createGlitch;
+} catch (e) { console.error('fx load failed', e); }
+
+const host = document.getElementById('fxhost');
+const pool = {};
+
+/* Engines accumulate their own `time`, so a worker that starts mid-film would
+   see the effect begin at zero. Each effect is therefore scoped to its scene
+   and pre-rolled from that scene's first frame when the sequence is broken.
+   Drop geometry depends on time, not on the content texture, so pre-rolling
+   against the current frame is exact for the pattern and cheap. */
+function obtain(name, opts){
+  let e = pool[name];
+  if (!e){
+    const stage = makeStage(host, 1920, 1080);
+    e = pool[name] = { stage, inst:null, next:-1, start:-1 };
+  }
+  return e;
+}
+window.FX = {
+  available: Object.keys(FACTORIES),
+  apply(name, srcCanvas, n, sceneStart, opts){
+    const make = FACTORIES[name];
+    if (!make) return null;
+    const e = obtain(name);
+    e.stage.setPainter(ctx => ctx.drawImage(srcCanvas, 0, 0));
+    const fresh = !e.inst || e.start !== sceneStart || e.next !== n;
+    if (fresh){
+      if (e.inst) { try { e.inst.destroy(); } catch(_){} }
+      e.inst = make({source:e.stage.source, content:e.stage.content, output:e.stage.output}, opts);
+      e.start = sceneStart;
+      for (let k = sceneStart; k < n; k++) e.stage.step(k);   // silent pre-roll
+    } else if (opts && e.inst.setOptions) {
+      e.inst.setOptions(opts);
+    }
+    if (!e.inst) return null;
+    e.stage.step(n);
+    e.next = n + 1;
+    return e.stage.output;
+  }
+};
+window.__fxResolve();
+</script>
+<script>
+/* =======================================================================
+   MAINSTREET RP — promotional film.  1920x1080 @30fps, 36.0s.
+   Deterministic: renderFrame(n) depends only on n. No wall clock, no
+   unseeded random, so re-renders are byte-identical.
+
+   Pipeline per frame:
+     scene -> SCN buffer (under virtual camera)
+     post  -> god rays, bloom, halation, chromatic aberration, film grade,
+              grain, gate weave, vignette, letterbox
+     UI    -> drawn after post so it stays razor sharp
+   120 BPM / 2.0s bars; every cut lands on a bar line.
+   ======================================================================= */
+
+const CONFIG = { letterbox: 0 };
+const W = 1360, H = 480, FPS = 15, DURATION = 3.0;       // 45 frames, one loop
+const TOTAL = Math.round(DURATION * FPS);
+const C = {
+  bg:'#0a0409', deep:'#12060e', lime:'#ff4fa3', mid:'#c2307a', dark:'#5a1638',
+  pale:'#ffb6d9', chrome:'#fff4f9', steel:'#e3b9cf', dim:'#6e4a5c'
+};
+const DISP = '"Liberation Sans", Arial, Helvetica, sans-serif';
+const MONO = '"Liberation Mono", "DejaVu Sans Mono", monospace';
+
+/* ---------- buffers ---------- */
+function mk(w,h){ const c = document.createElement('canvas'); c.width=w; c.height=h; return c; }
+const OUT = document.getElementById('stage'), out = OUT.getContext('2d', {alpha:false});
+const SCN = mk(W,H),       scn = SCN.getContext('2d');      // scene render
+const TMP = mk(W,H),       tmp = TMP.getContext('2d');      // post scratch
+const CHN = mk(W,H),       chn = CHN.getContext('2d');      // channel isolate
+const BW = W>>2, BH = H>>2;
+const B1 = mk(BW,BH), b1 = B1.getContext('2d');             // bright pass
+const B2 = mk(BW,BH), b2 = B2.getContext('2d');             // blurred bright
+const B3 = mk(BW,BH), b3 = B3.getContext('2d');             // god rays
+let x = scn;                                                // scenes draw to x
+
+/* ---------- math ---------- */
+const cl = t => t < 0 ? 0 : t > 1 ? 1 : t;
+const eOutCubic = t => 1 - Math.pow(1 - cl(t), 3);
+const eOutQuint = t => 1 - Math.pow(1 - cl(t), 5);
+const eOutExpo  = t => cl(t) >= 1 ? 1 : 1 - Math.pow(2, -11 * cl(t));
+const eInCubic  = t => Math.pow(cl(t), 3);
+const eInExpo   = t => cl(t) <= 0 ? 0 : Math.pow(2, 10*cl(t) - 10);
+const eInOut    = t => { t = cl(t); return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; };
+const eInOutExpo= t => { t=cl(t); return t===0?0:t===1?1:t<.5?Math.pow(2,20*t-10)/2:(2-Math.pow(2,-20*t+10))/2; };
+const eOutBack  = t => { t = cl(t); const c = 1.8; return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); };
+const mix = (a,b,t) => a + (b-a) * cl(t);
+const band = (t,a,b,fi,fo) => Math.min(eOutCubic((t-a)/fi), 1 - eInCubic((t-(b-fo))/fo));
+function prng(seed){
+  let a = seed | 0;
+  return function(){
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+/* Smooth deterministic drift — sum of incommensurate sines. */
+function drift(t, seed){
+  const s = seed * 1.7;
+  return (Math.sin(t*0.71 + s) + Math.sin(t*1.63 + s*2.1)*0.6 + Math.sin(t*2.37 + s*3.3)*0.3) / 1.9;
+}
+
+/* ---------- assets ---------- */
+const IMG = {};
+function loadImg(key, src){
+  return new Promise(res => { const i = new Image(); i.onload=()=>{IMG[key]=i;res();}; i.onerror=()=>res(); i.src=src; });
+}
+/* Media plates: build.js injects window.MEDIA_MANIFEST after scanning media/.
+   Each entry {slot, kind:'video'|'still', frames:[urls]} — absent is fine,
+   every slot has a designed graphic fallback. */
+const MEDIA = {};
+window.MEDIA = MEDIA;   // exposed so build.js can verify ingest landed
+function loadMedia(){
+  const man = window.MEDIA_MANIFEST || [];
+  const jobs = [];
+  for (const m of man){
+    const imgs = [];
+    m.frames.forEach((u,i) => jobs.push(new Promise(r => {
+      const im = new Image(); im.onload=()=>{imgs[i]=im;r();}; im.onerror=()=>r(); im.src=u;
+    })));
+    MEDIA[m.slot] = { kind:m.kind, imgs, count:m.frames.length };
+  }
+  return Promise.all(jobs);
+}
+window.ASSETS = Promise.all([
+  loadImg('badge','assets/badge.png'),
+  loadImg('mark','assets/mark.png')
+]).then(loadMedia).then(() => window.FXREADY);
+function hasPlate(slot){ const m = MEDIA[slot]; return !!(m && m.imgs && m.imgs.length && m.imgs[0]); }
+
+/* ---------- type ---------- */
+function setDisp(s,w){ x.font = (w||'bold') + ' ' + s + 'px ' + DISP; }
+function setMono(s,w){ x.font = (w||'normal') + ' ' + s + 'px ' + MONO; }
+function trackedW(str, track){
+  let w = 0; const ch = Array.from(str);
+  for (const c of ch) w += x.measureText(c).width + track;
+  return w - (ch.length ? track : 0);
+}
+function chromeGrad(size){
+  const g = x.createLinearGradient(0, -size*0.74, 0, size*0.10);
+  g.addColorStop(0.00,'#ffffff'); g.addColorStop(0.28,'#ffd9ec');
+  g.addColorStop(0.46,'#b43c76'); g.addColorStop(0.55,'#ff92ca');
+  g.addColorStop(0.74,'#fff3f9'); g.addColorStop(1.00,'#e48ab8');
+  return g;
+}
+/* Per-character animated display type. o.charIn = {u, stagger, dur, rise} */
+function ctext(str, cx, cy, size, o){
+  o = o || {};
+  const sq = o.sq == null ? 0.80 : o.sq, track = o.track || 0;
+  const align = o.align || 'center';
+  x.save();
+  if (o.mono) setMono(size, o.weight || 'bold'); else setDisp(size, o.weight);
+  x.textBaseline = o.baseline || 'alphabetic';
+  const tw = trackedW(str, track) * sq;
+  const sx = align === 'center' ? cx - tw/2 : align === 'right' ? cx - tw : cx;
+  x.translate(sx, cy); x.scale(sq, 1);
+  const fill = o.chromeFill ? chromeGrad(size) : (o.color || C.chrome);
+  const ch = Array.from(str); let p = 0;
+  const ci = o.charIn;
+  for (let k = 0; k < ch.length; k++){
+    const c = ch[k];
+    let a = 1, dy = 0;
+    if (ci){
+      const lp = eOutQuint((ci.u - k*ci.stagger) / ci.dur);
+      a = lp; dy = (1 - lp) * (ci.rise == null ? size*0.42 : ci.rise);
+      if (a <= 0.002){ p += x.measureText(c).width + track; continue; }
+    }
+    x.save();
+    if (ci){ x.globalAlpha *= a; x.translate(0, dy); }
+    if (o.stroke){ x.lineWidth = o.strokeW || 2; x.strokeStyle = o.stroke; x.strokeText(c, p, 0); }
+    if (o.fill !== false){ x.fillStyle = fill; x.fillText(c, p, 0); }
+    x.restore();
+    p += x.measureText(c).width + track;
+  }
+  x.restore();
+  return tw;
+}
+function ctextW(str, size, o){
+  o = o || {}; const sq = o.sq == null ? 0.80 : o.sq;
+  x.save();
+  if (o.mono) setMono(size, o.weight || 'bold'); else setDisp(size, o.weight);
+  const w = trackedW(str, o.track || 0) * sq;
+  x.restore(); return w;
+}
+function glow(color, blur, fn){ x.save(); x.shadowColor = color; x.shadowBlur = blur; fn(); x.restore(); }
+
+/* ---------- virtual camera ---------- */
+let CAM = { x:0, y:0, scale:1, rot:0, blur:0 };
+function camReset(){ CAM = { x:0, y:0, scale:1, rot:0, blur:0 }; }
+/* Handheld float present on every shot — static frames read as amateur. */
+function camHandheld(t, amt){
+  CAM.x   += drift(t, 1) * 5.0 * amt;
+  CAM.y   += drift(t+11, 2) * 4.0 * amt;
+  CAM.rot += drift(t+23, 3) * 0.0018 * amt;
+  CAM.scale *= 1 + 0.0025 * amt;
+}
+function camApply(){
+  x.translate(W/2 + CAM.x, H/2 + CAM.y);
+  x.rotate(CAM.rot);
+  x.scale(CAM.scale, CAM.scale);
+  x.translate(-W/2, -H/2);
+}
+
+/* ---------- atmosphere ---------- */
+function fogBank(t, y0, h, alpha, speed, seed, col){
+  if (alpha <= 0.002) return;
+  const r = prng(seed);
+  x.save(); x.globalAlpha = alpha; x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 7; i++){
+    const w0 = 500 + r()*800, px = ((r()*2400 + t*speed*(0.5+r())) % (W + w0*2)) - w0;
+    const py = y0 + r()*h, rr = w0*0.5;
+    const g = x.createRadialGradient(px, py, 0, px, py, rr);
+    g.addColorStop(0, col || 'rgba(60,140,40,0.11)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, rr, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+function rain(t, n, amount, slant){
+  if (amount <= 0.002) return;
+  const r = prng(5150);
+  x.save(); x.globalAlpha = amount; x.strokeStyle = 'rgba(200,230,190,0.30)'; x.lineCap='round';
+  const N = 150;
+  for (let i = 0; i < N; i++){
+    const depth = 0.35 + r()*0.65;
+    const sp = 900*depth, len = 16 + 30*depth;
+    const px = (r()*W*1.3 - W*0.15 + t*slant*depth*60) % (W*1.3) - W*0.1;
+    const py = ((r()*H + t*sp) % (H + 200)) - 100;
+    x.globalAlpha = amount * depth * 0.6;
+    x.lineWidth = depth*1.9;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px - slant*len*0.4, py + len); x.stroke();
+  }
+  x.restore();
+}
+function embers(t, amount, seed){
+  if (amount <= 0.002) return;
+  const r = prng(seed || 2200);
+  x.save(); x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 60; i++){
+    const depth = 0.3 + r()*0.7, sp = 24*depth;
+    const px = (r()*W + Math.sin(t*0.5 + i)*40*depth) % W;
+    const py = ((r()*H*1.3 - t*sp) % (H+140)) + (H+70) - ((r()*H*1.3 - t*sp) % (H+140) < 0 ? 0 : H+140) + H*0.1;
+    const yy = ((py % (H+140)) + (H+140)) % (H+140) - 70;
+    const sz = 1.0 + depth*2.4;
+    const fl = 0.35 + 0.65*Math.abs(Math.sin(t*2.2 + i*1.7));
+    x.globalAlpha = amount * depth * fl * 0.75;
+    x.fillStyle = i % 5 === 0 ? C.chrome : C.lime;
+    x.beginPath(); x.arc(px, yy, sz, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+/* Depth-of-field bokeh discs drifting in the foreground. */
+function bokeh(t, amount, seed){
+  if (amount <= 0.002) return;
+  const r = prng(seed || 3300);
+  x.save(); x.globalCompositeOperation = 'lighter'; x.filter = 'blur(6px)';
+  for (let i = 0; i < 14; i++){
+    const depth = 0.4 + r()*0.6;
+    const px = (r()*W + t*16*depth) % (W+240) - 120;
+    const py = r()*H + Math.sin(t*0.4 + i*2.1)*26;
+    const rr = 14 + depth*46;
+    x.globalAlpha = amount * (0.05 + depth*0.09);
+    x.fillStyle = i % 4 === 0 ? C.chrome : C.lime;
+    x.beginPath(); x.arc(px, py, rr, 0, Math.PI*2); x.fill();
+  }
+  x.restore();
+}
+/* Anamorphic flare: horizontal streak + warm core, as a bright lens would give. */
+function flare(px, py, strength, width, tint){
+  if (strength <= 0.002) return;
+  x.save(); x.globalCompositeOperation = 'lighter';
+  const g = x.createLinearGradient(px - width, py, px + width, py);
+  g.addColorStop(0.0,'rgba(0,0,0,0)');
+  g.addColorStop(0.5, tint || 'rgba(150,255,105,0.42)');
+  g.addColorStop(1.0,'rgba(0,0,0,0)');
+  x.globalAlpha = strength; x.fillStyle = g;
+  x.fillRect(px - width, py - 2.5, width*2, 5);
+  x.globalAlpha = strength*0.55;
+  x.fillRect(px - width*0.55, py - 1, width*1.1, 2);
+  const rg = x.createRadialGradient(px,py,0,px,py,width*0.16);
+  rg.addColorStop(0,'rgba(255,255,255,0.75)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  x.globalAlpha = strength; x.fillStyle = rg;
+  x.beginPath(); x.arc(px,py,width*0.16,0,Math.PI*2); x.fill();
+  x.restore();
+}
+/* Light shafts from a point — cheap volumetric. */
+function shafts(t, px, py, strength, count, len, tint){
+  if (strength <= 0.002) return;
+  const r = prng(7700);
+  x.save(); x.globalCompositeOperation = 'lighter'; x.translate(px,py);
+  for (let i = 0; i < count; i++){
+    const a0 = r()*Math.PI*2, wob = Math.sin(t*0.5 + i*1.3)*0.05;
+    const wdt = (0.012 + r()*0.05);
+    x.save(); x.rotate(a0 + wob);
+    const g = x.createLinearGradient(0,0,len,0);
+    g.addColorStop(0, tint || 'rgba(120,240,60,0.26)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.globalAlpha = strength * (0.35 + r()*0.65);
+    x.fillStyle = g;
+    x.beginPath(); x.moveTo(0,0); x.lineTo(len, -len*wdt); x.lineTo(len, len*wdt); x.closePath(); x.fill();
+    x.restore();
+  }
+  x.restore();
+}
+
+/* ---------- media plates ---------- */
+/* Draws a footage/still plate for `slot`, cover-fitted with a slow push.
+   Returns false when no media is present so the caller draws its fallback. */
+function plate(slot, t, u, opts){
+  if (!hasPlate(slot)) return false;
+  opts = opts || {};
+  const m = MEDIA[slot];
+  const img = m.kind === 'video'
+    ? m.imgs[Math.min(m.imgs.length-1, Math.floor(u * m.imgs.length))] || m.imgs[0]
+    : m.imgs[0];
+  if (!img) return false;
+  const a = opts.alpha == null ? 1 : opts.alpha;
+  const zoom = mix(opts.z0 == null ? 1.06 : opts.z0, opts.z1 == null ? 1.16 : opts.z1, eInOut(u));
+  const panX = (opts.panX || 0) * (u - 0.5) * 2, panY = (opts.panY || 0) * (u - 0.5) * 2;
+  const dw = W*zoom, dh = H*zoom;
+  x.save();
+  if (opts.clip) { x.beginPath(); opts.clip(); x.clip(); }
+  x.globalAlpha = a;
+  if (opts.grade !== false) x.filter = opts.filter || 'saturate(74%) contrast(118%) brightness(84%)';
+  x.drawImage(img, (W-dw)/2 + panX, (H-dh)/2 + panY, dw, dh);
+  x.filter = 'none';
+  // grade toward the brand: green lift in shadows, crushed blacks
+  x.globalCompositeOperation = 'multiply'; x.globalAlpha = a*0.55;
+  const g = x.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#b9d7ad'); g.addColorStop(0.55,'#7fae72'); g.addColorStop(1,'#4d7a42');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+  x.globalCompositeOperation = 'lighter'; x.globalAlpha = a*0.10;
+  x.fillStyle = '#123a0c'; x.fillRect(0,0,W,H);
+  x.restore();
+  return true;
+}
+
+/* ---------- texture ---------- */
+const NOISE = [];
+(function(){
+  for (let k = 0; k < 12; k++){
+    const n = mk(256,256), nx = n.getContext('2d');
+    const img = nx.createImageData(256,256), d = img.data, r = prng(900 + k*53);
+    for (let i = 0; i < d.length; i += 4){ const v = 110 + (r()*150)|0; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+    nx.putImageData(img,0,0); NOISE.push(n);
+  }
+})();
+function grain(n, a){
+  const r = prng(n * 2654435761);
+  x.save(); x.globalCompositeOperation='overlay'; x.globalAlpha=a;
+  x.translate(-(r()*256)|0, -(r()*256)|0);
+  x.fillStyle = x.createPattern(NOISE[n % NOISE.length],'repeat');
+  x.fillRect(0,0,W+256,H+256); x.restore();
+  // a touch more grain in the shadows, as film does
+  x.save(); x.globalCompositeOperation='soft-light'; x.globalAlpha=a*0.5;
+  x.translate(-(r()*256)|0, -(r()*256)|0);
+  x.fillStyle = x.createPattern(NOISE[(n+5) % NOISE.length],'repeat');
+  x.fillRect(0,0,W+256,H+256); x.restore();
+}
+function vignette(s, warp){
+  const g = x.createRadialGradient(W/2,H/2,H*(warp||0.30),W/2,H/2,H*0.98);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(0.55,'rgba(0,0,0,'+(s*0.22)+')');
+  g.addColorStop(1,'rgba(0,0,0,'+s+')');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+}
+function letterbox(amt){
+  if (amt <= 0) return;
+  const h = Math.round(H*amt);
+  x.fillStyle = '#000'; x.fillRect(0,0,W,h); x.fillRect(0,H-h,W,h);
+}
+function flash(a, color){
+  if (a <= 0) return;
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=cl(a);
+  x.fillStyle = color || '#ffffff'; x.fillRect(0,0,W,H); x.restore();
+}
+function glitch(n, inten){
+  if (inten <= 0.001) return;
+  const r = prng(n*9176+13), slices = 5 + (r()*7|0);
+  for (let i = 0; i < slices; i++){
+    if (r() > inten) continue;
+    const sy = r()*H, sh = 6 + r()*70, dx = (r()-0.5)*150*inten;
+    x.drawImage(x.canvas, 0, sy, W, sh, dx, sy, W, sh);
+    if (r() > 0.68){
+      x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=0.26*inten;
+      x.fillStyle = C.lime; x.fillRect(dx, sy, W, sh); x.restore();
+    }
+  }
+}
+
+/* ---------- post stack ---------- */
+/* Isolates true highlights by raising the image to the 4th power through
+   successive multiply passes. A contrast() curve leaves far too much mid-tone
+   in the bloom and blows the frame out. */
+function brightPass(src){
+  b1.setTransform(1,0,0,1,0,0); b1.globalCompositeOperation='source-over'; b1.globalAlpha=1;
+  b1.filter='none'; b1.clearRect(0,0,BW,BH);
+  b1.drawImage(src, 0,0, BW,BH);
+  b2.setTransform(1,0,0,1,0,0); b2.globalCompositeOperation='source-over'; b2.globalAlpha=1;
+  b2.filter='none'; b2.clearRect(0,0,BW,BH);
+  b2.drawImage(B1,0,0);
+  b2.globalCompositeOperation='multiply'; b2.drawImage(B1,0,0);        // ^2
+  b1.globalCompositeOperation='source-over'; b1.clearRect(0,0,BW,BH);
+  b1.drawImage(B2,0,0);
+  b1.globalCompositeOperation='multiply'; b1.drawImage(B2,0,0);        // ^4
+  b1.globalCompositeOperation='source-over';
+}
+function blurSmall(dstCtx, srcCanvas, px){
+  dstCtx.setTransform(1,0,0,1,0,0); dstCtx.globalCompositeOperation='source-over'; dstCtx.globalAlpha=1;
+  dstCtx.clearRect(0,0,BW,BH);
+  dstCtx.filter = 'blur('+px+'px)'; dstCtx.drawImage(srcCanvas,0,0); dstCtx.filter='none';
+}
+function bloomPass(dst, intensity, halation){
+  if (intensity <= 0.002 && halation <= 0.002) return;
+  brightPass(SCN);
+  dst.save(); dst.globalCompositeOperation='lighter'; dst.imageSmoothingQuality='high';
+  if (intensity > 0.002){ blurSmall(b3, B1, 5); dst.globalAlpha = intensity; dst.drawImage(B3,0,0,W,H); }
+  if (halation > 0.002){
+    blurSmall(b3, B1, 18);
+    dst.globalAlpha = halation; dst.filter = 'sepia(1) saturate(3.2) hue-rotate(285deg)';
+    dst.drawImage(B3,0,0,W,H); dst.filter='none';
+  }
+  dst.restore();
+}
+/* Radial smear of the bright pass away from a light point. */
+function godrays(dst, lx, ly, strength, decay){
+  if (strength <= 0.002) return;
+  brightPass(SCN);
+  b3.setTransform(1,0,0,1,0,0); b3.globalCompositeOperation='source-over'; b3.globalAlpha=1;
+  b3.clearRect(0,0,BW,BH);
+  b3.globalCompositeOperation = 'lighter';
+  const cx = lx/4, cy = ly/4; let a = 1;
+  for (let i = 0; i < 14; i++){
+    const s = 1 + i*0.028;
+    b3.globalAlpha = a*0.085;
+    b3.save(); b3.translate(cx,cy); b3.scale(s,s); b3.translate(-cx,-cy);
+    b3.drawImage(B1,0,0); b3.restore();
+    a *= (decay || 0.90);
+  }
+  dst.save(); dst.globalCompositeOperation='lighter'; dst.globalAlpha=strength;
+  dst.filter='blur(2px)'; dst.drawImage(B3,0,0,W,H); dst.filter='none'; dst.restore();
+}
+/* Radial chromatic aberration — zero at centre, strongest at the frame edge. */
+function aberration(src, dst, px){
+  dst.setTransform(1,0,0,1,0,0); dst.globalAlpha=1;
+  if (px < 0.05){
+    dst.globalCompositeOperation='source-over'; dst.drawImage(src,0,0); return;
+  }
+  dst.globalCompositeOperation='source-over';
+  dst.fillStyle='#000'; dst.fillRect(0,0,W,H);
+  dst.globalCompositeOperation='lighter';
+  const chans = [['#ff0000',-px], ['#00ff00',0], ['#0000ff',px]];
+  for (const ch of chans){
+    chn.setTransform(1,0,0,1,0,0); chn.globalCompositeOperation='source-over'; chn.globalAlpha=1;
+    chn.clearRect(0,0,W,H); chn.drawImage(src,0,0);
+    chn.globalCompositeOperation='multiply'; chn.fillStyle=ch[0]; chn.fillRect(0,0,W,H);
+    const s = 1 + ch[1]*0.00075;
+    dst.save(); dst.translate(W/2,H/2); dst.scale(s,s); dst.translate(-W/2,-H/2);
+    dst.drawImage(CHN,0,0); dst.restore();
+  }
+}
+/* Directional smear for whip pans — canvas filters only do gaussian. */
+function dirBlur(src, dst, dx, dy, steps){
+  dst.setTransform(1,0,0,1,0,0); dst.globalCompositeOperation='source-over'; dst.globalAlpha=1;
+  dst.clearRect(0,0,W,H);
+  dst.globalCompositeOperation='lighter';
+  const n = steps || 7;
+  for (let i = 0; i < n; i++){
+    const f = (i/(n-1) - 0.5) * 2;
+    dst.globalAlpha = 1/n;
+    dst.drawImage(src, dx*f, dy*f);
+  }
+  dst.globalCompositeOperation='source-over'; dst.globalAlpha=1;
+}
+
+/* ---------- world ---------- */
+function bgBase(){
+  x.fillStyle = C.bg; x.fillRect(0,0,W,H);
+  const g = x.createRadialGradient(W*0.5,H*0.80,60,W*0.5,H*0.80,W*0.82);
+  g.addColorStop(0,'rgba(34,150,20,0.20)'); g.addColorStop(0.5,'rgba(9,20,9,0.55)');
+  g.addColorStop(1,'rgba(5,12,5,0)');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+}
+function gridHorizon(t, alpha){
+  if (alpha <= 0.001) return;
+  const hz = H*0.575;
+  x.save(); x.globalAlpha = alpha;
+  const g = x.createLinearGradient(0,hz-300,0,hz+6);
+  g.addColorStop(0,'rgba(87,238,17,0)'); g.addColorStop(0.6,'rgba(87,238,17,0.13)');
+  g.addColorStop(1,'rgba(87,238,17,0.48)');
+  x.fillStyle=g; x.fillRect(0,hz-300,W,306);
+  x.strokeStyle='rgba(87,238,17,0.26)'; x.lineWidth=1.5;
+  for (let i=-16;i<=16;i++){ x.beginPath(); x.moveTo(W/2+i*38,hz); x.lineTo(W/2+i*620,H+60); x.stroke(); }
+  for (let k=0;k<18;k++){
+    const p = ((k/18) + t*0.13) % 1, yy = hz + Math.pow(p,2.7)*(H-hz+70);
+    x.globalAlpha = alpha*(0.06+0.46*p);
+    x.beginPath(); x.moveTo(0,yy); x.lineTo(W,yy); x.stroke();
+  }
+  x.globalAlpha=alpha; x.strokeStyle='rgba(230,233,228,0.5)'; x.lineWidth=2;
+  x.beginPath(); x.moveTo(0,hz); x.lineTo(W,hz); x.stroke();
+  x.restore();
+}
+/* Three parallax skyline layers with fog between them. */
+function skyline(t, alpha, par){
+  if (alpha <= 0.001) return;
+  const hz = H*0.575;
+  const LAY = [
+    {seed:4400, sp:10,  col:'#020502', h0:60,  hr:140, a:1.00, w:34},
+    {seed:4531, sp:22,  col:'#071207', h0:120, hr:230, a:0.80, w:44},
+    {seed:4677, sp:40,  col:'#0d1f0c', h0:190, hr:300, a:0.55, w:58}
+  ];
+  for (let L = LAY.length-1; L >= 0; L--){
+    const o = LAY[L], r = prng(o.seed), off = (t*o.sp + (par||0)*o.sp*0.5) % 420;
+    x.save(); x.globalAlpha = alpha*o.a; x.fillStyle = o.col;
+    x.beginPath(); x.moveTo(-120,hz);
+    let px = -120 - off;
+    while (px < W+460){
+      const bw = o.w + r()*86, bh = o.h0 + r()*o.hr;
+      x.lineTo(px,hz-bh); x.lineTo(px+bw,hz-bh); px += bw + 6 + r()*18; x.lineTo(px,hz);
+    }
+    x.lineTo(W+460,hz); x.lineTo(W+460,hz+4); x.lineTo(-120,hz+4);
+    x.closePath(); x.fill();
+    // lit windows
+    const r2 = prng(o.seed+7); x.globalAlpha = alpha*o.a*0.5;
+    for (let i=0;i<70;i++){
+      const wx = ((r2()*(W+420)) - off) , wy = hz - r2()*(o.h0+o.hr)*0.9;
+      if (wy > hz-14) continue;
+      x.fillStyle = r2() > 0.78 ? C.lime : 'rgba(150,210,120,0.55)';
+      x.globalAlpha = alpha*o.a*(0.12+r2()*0.42);
+      x.fillRect(wx, wy, 3, 5);
+    }
+    x.restore();
+    if (L > 0) fogBank(t, hz-180, 170, alpha*0.55, o.sp*0.6, o.seed+91, 'rgba(70,150,50,0.10)');
+  }
+}
+
+/* ---------- broadcast chrome (drawn after post, stays sharp) ---------- */
+function chromeUI(t, n, alpha, lb){
+  if (alpha <= 0.001) return;
+  const pad = Math.round(H*lb);
+  x.save(); x.globalAlpha = alpha;
+  const m = 56, L = 34, top = m + pad, bot = H - m - pad;
+  x.strokeStyle='rgba(230,233,228,0.30)'; x.lineWidth=2;
+  const cor=(cx,cy,sx,sy)=>{x.beginPath();x.moveTo(cx+sx*L,cy);x.lineTo(cx,cy);x.lineTo(cx,cy+sy*L);x.stroke();};
+  cor(m,top,1,1); cor(W-m,top,-1,1); cor(m,bot,1,-1); cor(W-m,bot,-1,-1);
+  if (IMG.mark){
+    x.save(); x.globalAlpha = alpha*0.9; x.drawImage(IMG.mark, m+2, top+6, 46, 46); x.restore();
+    ctext('MAINSTREET RP', m+60, top+36, 19, {mono:true,align:'left',track:4.5,sq:1,color:'rgba(230,233,228,0.74)'});
+  } else {
+    ctext('MAINSTREET RP', m+2, top+30, 19, {mono:true,align:'left',track:4.5,sq:1,color:'rgba(230,233,228,0.74)'});
+  }
+  const tc = '00:'+String(Math.floor(n/FPS)).padStart(2,'0')+':'+String(n%FPS).padStart(2,'0');
+  ctext(tc, W-m-2, top+36, 19, {mono:true,align:'right',track:4.5,sq:1,color:'rgba(87,238,17,0.74)'});
+  x.globalAlpha = alpha*((Math.floor(t*2)%2)===0?1:0.22);
+  x.fillStyle=C.lime; x.beginPath(); x.arc(W-m-158, top+29, 6, 0, Math.PI*2); x.fill();
+  x.globalAlpha=alpha*0.22; x.fillStyle='rgba(230,233,228,0.5)'; x.fillRect(m,bot-2,W-m*2,2);
+  x.globalAlpha=alpha*0.95; x.fillStyle=C.lime; x.fillRect(m,bot-2,(W-m*2)*cl(t/DURATION),2);
+  x.restore();
+}
+
+/* ---------- section furniture ---------- */
+function sectionHead(u, num, label){
+  x.save(); x.globalAlpha = band(u,0,1,0.10,0.12)*0.05;
+  ctext(num, 118, H-92, 430, {align:'left', sq:0.70, color:C.chrome});
+  x.restore();
+  const la = band(u,0.02,1,0.08,0.10);
+  x.save(); x.globalAlpha = la;
+  x.fillStyle=C.lime; x.fillRect(126, 199, 7 + 56*eOutExpo((u-0.02)/0.10), 17);
+  ctext('// '+label, 208, 214, 23, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+  x.restore();
+}
+function bulletList(u, items, bx, by, step, t0){
+  for (let i=0;i<items.length;i++){
+    const s = t0 + i*0.075, a = band(u,s,1,0.07,0.11);
+    if (a <= 0.002) continue;
+    const p = eOutQuint((u-s)/0.09), yy = by + i*step;
+    x.save(); x.globalAlpha=a; x.translate((1-p)*-34,0);
+    x.fillStyle=C.lime; x.fillRect(bx, yy-10, 20, 4);
+    ctext(items[i], bx+40, yy, 31, {align:'left',sq:0.84,track:1,color:'rgba(230,233,228,0.94)'});
+    x.restore();
+  }
+}
+/* Frosted panel — gives UI mocks real depth against the plate behind. */
+function panel(px,py,pw,ph,alpha,accent){
+  x.save(); x.globalAlpha = alpha;
+  x.fillStyle='rgba(6,14,6,0.80)'; x.fillRect(px,py,pw,ph);
+  const g = x.createLinearGradient(px,py,px,py+ph);
+  g.addColorStop(0,'rgba(87,238,17,0.10)'); g.addColorStop(1,'rgba(87,238,17,0)');
+  x.fillStyle=g; x.fillRect(px,py,pw,ph);
+  x.strokeStyle='rgba(87,238,17,0.34)'; x.lineWidth=2; x.strokeRect(px+0.5,py+0.5,pw-1,ph-1);
+  if (accent !== false){ x.fillStyle=C.lime; x.fillRect(px,py,pw,4); }
+  x.restore();
+}
+
+const WRK = mk(W,H), wrk = WRK.getContext('2d');
+let PD = {};                       // per-frame dynamic post overrides
+
+/* =======================================================================
+   DISCORD PROFILE BANNER for Morgan.
+   Discord (support.discord.com, "Custom Profiles"): Nitro only; PNG, JPG
+   or animated GIF under 10 MB; recommended minimum 600x240, newer docs say
+   680x240. Built at 1360x480 (2x the larger), content kept inside a centred
+   5:2 zone so either crop holds. The avatar sits over the bottom-left
+   corner, so that corner is left empty.
+   Pink / sakura / tribal — Morgan's own finish. The tribal ornament is
+   lifted straight off the Glock's grip engraving.
+   ======================================================================= */
+const Q = new URLSearchParams(location.search);
+const NAME = (Q.get('name') || 'MORGAN').toUpperCase();
+const MODE = Q.get('mode') || 'still';
+const TAU = Math.PI*2;
+const AV = { x0: 0, x1: 0.30, y0: 0.70 };     // avatar keep-out, as fractions of W/H
+
+window.ASSETS = window.ASSETS.then(() => Promise.all([
+  loadImg('tribal', 'assets/tribal.png'),
+  loadImg('gun',    'assets/gun_morgan.jpg')
+]));
+
+function petalPath(c, s){
+  c.beginPath(); c.moveTo(0, s*0.5);
+  c.bezierCurveTo(s*0.56, s*0.22, s*0.48, -s*0.46, s*0.13, -s*0.5);
+  c.lineTo(0, -s*0.34); c.lineTo(-s*0.13, -s*0.5);
+  c.bezierCurveTo(-s*0.48, -s*0.46, -s*0.56, s*0.22, 0, s*0.5); c.closePath();
+}
+function blossom(c, s){ for (let i=0;i<5;i++){ c.save(); c.rotate(i*TAU/5); c.translate(0,-s*0.32); petalPath(c, s*0.62); c.fill(); c.restore(); } }
+
+/* petals: integer cycles per loop so the GIF wraps */
+function petals(p, front, seed){
+  const r = prng(seed + (front?991:0)), N = front ? 9 : 26;
+  for (let i=0;i<N;i++){
+    const depth = front ? 0.8 + r()*0.2 : 0.3 + r()*0.5;
+    const size = front ? 34 + r()*30 : 10 + r()*16;
+    const cyc = 1 + (r() > 0.55 ? 1 : 0);
+    const x0 = r()*W*1.15 - W*0.05, y0 = r(), ph = r()*TAU, sw = 18 + r()*40;
+    const isB = r() < 0.16, flip = 1 + Math.floor(r()*2), spin = (r() < 0.5 ? -1 : 1);
+    const yy = ((y0 + p*cyc) % 1)*(H + 120) - 60;
+    const xx = x0 + Math.sin(p*TAU*cyc + ph)*sw + p*0;
+    x.save(); x.translate(xx, yy); x.rotate(ph + spin*p*TAU);
+    x.scale(Math.cos(p*TAU*flip + ph), 1);
+    x.globalAlpha = front ? 0.75 : 0.35 + 0.45*depth;
+    const g = x.createLinearGradient(0,-size/2,0,size/2);
+    g.addColorStop(0,'#ffc8e3'); g.addColorStop(1,'#ff6aae'); x.fillStyle = g;
+    if (isB) blossom(x, size); else { petalPath(x, size); x.fill(); }
+    x.restore();
+  }
+}
+/* Y2K four-point glint */
+function glint(px, py, s, a){
+  if (a <= 0.01) return;
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=a; x.translate(px,py);
+  x.fillStyle='#fff3fa';
+  x.beginPath(); x.moveTo(0,-s); x.quadraticCurveTo(0,0,s*0.22,0); x.quadraticCurveTo(0,0,0,s);
+  x.quadraticCurveTo(0,0,-s*0.22,0); x.quadraticCurveTo(0,0,0,-s); x.fill();
+  x.beginPath(); x.moveTo(-s*0.6,0); x.quadraticCurveTo(0,0,0,s*0.14); x.quadraticCurveTo(0,0,s*0.6,0);
+  x.quadraticCurveTo(0,0,0,-s*0.14); x.quadraticCurveTo(0,0,-s*0.6,0); x.fill();
+  const g = x.createRadialGradient(0,0,0,0,0,s*0.6); g.addColorStop(0,'rgba(255,120,190,0.6)'); g.addColorStop(1,'rgba(255,120,190,0)');
+  x.fillStyle=g; x.beginPath(); x.arc(0,0,s*0.6,0,TAU); x.fill();
+  x.restore();
+}
+
+function profileScene(p, n){
+  /* ground */
+  x.fillStyle = '#0a0409'; x.fillRect(0,0,W,H);
+  const nx = W*0.47, ny = H*0.50;                          // name centre
+  const pulse = MODE === 'gif' ? 1 : 0.9 + 0.1*Math.sin(p*TAU);
+  let g = x.createRadialGradient(nx, ny, 10, nx, ny, W*0.55);
+  g.addColorStop(0,'rgba(255,79,163,'+(0.30*pulse)+')'); g.addColorStop(0.5,'rgba(120,20,70,0.16)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0,0,W,H);
+  // diagonal light rakes
+  x.save(); x.globalCompositeOperation='lighter';
+  for (let i=0;i<5;i++){
+    const ox = W*(0.15 + i*0.19) + (MODE === 'gif' ? 0 : Math.sin(p*TAU + i)*14);
+    const lg = x.createLinearGradient(ox, 0, ox + 220, H);
+    lg.addColorStop(0,'rgba(255,170,215,0.06)'); lg.addColorStop(1,'rgba(255,170,215,0)');
+    x.fillStyle = lg; x.beginPath(); x.moveTo(ox,0); x.lineTo(ox+40,0); x.lineTo(ox+300,H); x.lineTo(ox+190,H); x.closePath(); x.fill();
+  }
+  x.restore();
+
+  /* the tribal, from Morgan's grip, as a wing ornament behind the name */
+  if (IMG.tribal){
+    const th = H*1.05, tw = th * IMG.tribal.width / IMG.tribal.height;
+    x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha = MODE === 'gif' ? 0.21 : 0.20 + 0.04*Math.sin(p*TAU);
+    x.filter = 'blur(1px)';
+    x.drawImage(IMG.tribal, nx - tw/2, ny - th/2 + 10, tw, th);
+    x.filter = 'blur(14px)'; x.globalAlpha = 0.22;
+    x.drawImage(IMG.tribal, nx - tw/2, ny - th/2 + 10, tw, th);
+    x.restore();
+  }
+
+  petals(p, false, 4242);
+
+  /* the gun — finish 02, the MORGAN slide — floating in from the right */
+  if (IMG.gun){
+    // source gun body spans ~830x800 of the 1440x1080 frame, centred near (685,520)
+    const gs = 0.50, gw = 1440*gs, gh = 1080*gs;
+    const cx = W*0.855, cy = H*0.50 + Math.sin(p*TAU + 1.2)*5;
+    x.save(); x.translate(cx, cy); x.rotate(-0.13 + Math.sin(p*TAU)*0.008);
+    x.translate(-685*gs, -520*gs);
+    x.globalCompositeOperation='screen'; x.filter='contrast(1.08) brightness(0.98)';
+    x.drawImage(IMG.gun, 0, 0, gw, gh);
+    x.restore();
+  }
+
+  /* the name */
+  const size = NAME.length > 6 ? 168 : 184;
+  x.save();
+  glow('rgba(255,79,163,0.75)', 40, ()=>{
+    ctext(NAME, nx, ny + size*0.30, size, {sq:0.80, track:6, chromeFill:true});
+  });
+  // crisp edge on top of the glow pass
+  ctext(NAME, nx, ny + size*0.30, size, {sq:0.80, track:6, fill:false, stroke:'rgba(255,240,248,0.55)', strokeW:1.5});
+  x.restore();
+  // shine sweep across the name, once per loop
+  {
+    const sw = (p*1.6) % 1.6;                              // sweep for the first 62% of the loop, rest at rest
+    if (sw < 1){
+      const tw = ctextW(NAME, size, {sq:0.80, track:6});
+      const cx = mix(nx - tw/2 - 120, nx + tw/2 + 120, sw);
+      x.save(); x.beginPath(); x.rect(nx - tw/2 - 10, ny - size*0.55, tw + 20, size*0.95); x.clip();
+      x.globalCompositeOperation='lighter';
+      const sg = x.createLinearGradient(cx-90, 0, cx+90, 0);
+      sg.addColorStop(0,'rgba(255,255,255,0)'); sg.addColorStop(0.5,'rgba(255,240,250,0.55)'); sg.addColorStop(1,'rgba(255,255,255,0)');
+      x.fillStyle = sg; x.globalAlpha = Math.sin(sw*Math.PI);
+      ctext(NAME, nx, ny + size*0.30, size, {sq:0.80, track:6, color:sg});
+      x.restore();
+    }
+  }
+  // kicker under the name
+  ctext('// MAINSTREET RP', nx, ny + size*0.30 + 46, 22, {mono:true, track:9, sq:1, color:'rgba(255,200,228,0.85)'});
+  if (NAME === 'MORGAN')
+    ctext('A.K.A. MORGIE', nx, ny - size*0.42, 20, {mono:true, track:10, sq:1, color:'rgba(255,120,190,0.95)'});
+
+  /* glints — each twinkles on its own integer cycle */
+  const G = [[0.20,0.22,26,1,0.0],[0.73,0.20,20,2,0.3],[0.62,0.78,16,1,0.55],[0.30,0.62,14,2,0.75],[0.86,0.66,22,1,0.15]];
+  for (const [gx, gy, s, cyc, ph] of G){
+    const a = Math.max(0, Math.sin((p*cyc + ph)*TAU));
+    glint(W*gx, H*gy, s*(0.6 + 0.4*a), a*0.9);
+  }
+
+  petals(p, true, 4242);
+  vignette(0.55);
+}
+
+window.renderFrame = function(n){
+  const p = (n % TOTAL) / TOTAL;
+  x = scn;
+  x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation='source-over'; x.filter='none';
+  profileScene(p, n);
+  aberration(SCN, tmp, 1.0);
+  bloomPass(tmp, 0.16, 0.12);
+  out.setTransform(1,0,0,1,0,0); out.globalAlpha=1; out.globalCompositeOperation='source-over';
+  out.fillStyle='#000'; out.fillRect(0,0,W,H);
+  out.save(); out.filter='contrast(106%) saturate(106%)'; out.drawImage(TMP,0,0); out.restore();
+  out.filter='none';
+  if (MODE === 'still'){ x = out; grain(n, 0.06); x = scn; }
+  return true;
+};
+window.TOTAL_FRAMES = TOTAL;
+window.FPS_OUT = FPS;
+window.ASSETS.then(() => window.renderFrame(0));
+</script></body></html>
