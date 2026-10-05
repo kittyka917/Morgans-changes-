@@ -1,7 +1,10 @@
 # Build output — regenerate with build.js / score.py
 frames/
+mframes/
+gframes/
 out/
 score.wav
+score_*.wav
 *.log
 
 # Your source clips and the extracted frame cache stay local

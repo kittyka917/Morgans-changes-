@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Music bed for Morgie's Gun Showcase: 26.0s, 120 BPM half-time trap in
-F minor. Bars are 2.0s, matching the cuts in morgie.html (2,6,10,12,16,18,22,24);
-the two biggest hits land on the claps at 11.0s and 17.0s, the frames the finish swaps.
+Music bed for Morgie's Gun Showcase: 34.0s, 120 BPM half-time trap in
+F minor. Bars are 2.0s, matching the cuts in morgie.html (2,6,10,12,16,18,22,24,26,30,32);
+the three biggest hits land on the claps at 11.0s, 17.0s and 23.0s, the frames the finish swaps.
 Writes score_morgie.wav (44.1 kHz, 16-bit stereo).
 """
 import math, struct, random
 from array import array
 
-SR, DUR, BEAT = 44100, 26.0, 0.5
+SR, DUR, BEAT = 44100, 34.0, 0.5
 N = int(SR*DUR)
 L = [0.0]*N; R = [0.0]*N
 rng = random.Random(1914)
@@ -107,24 +107,24 @@ PROG = [0, -4, 3, -2]
 def root(bar): return PROG[bar % 4]
 
 # pad underneath everything
-for b in range(13):
+for b in range(17):
     r = root(b); base = semi(F1*4, r)
     add(b*2.0, pad(2.05, [base, base*1.189, base*1.498]), 0.08, 0.08)
 
 # music-box arpeggio, Fm pentatonic-ish figure, whole track, thinner in the intro
 fig = [12, 15, 19, 24, 19, 15, 22, 19]
-for b in range(13):
+for b in range(17):
     for k in range(8):
         t = b*2.0 + k*0.25
-        if t >= 25.5: break
+        if t >= 33.5: break
         if b == 0 and k % 2: continue
         f = semi(F1*16, root(b) + fig[k])
         pan = 0.5 + 0.35*math.sin(k*1.3 + b)
         g = 0.17 if b else 0.14
         add(t, bell(0.9, f), g*(1.2-pan), g*(0.2+pan))
 
-# drums enter on the 2.0s hit; drop out for the end card at 18.0
-DRUM0, DRUM1 = 2.0, 24.0
+# drums enter on the 2.0s hit; drop out for the end card at 32.0
+DRUM0, DRUM1 = 2.0, 32.0
 bar = DRUM0
 while bar < DRUM1 - 0.01:
     b = int(bar/2)
@@ -151,11 +151,16 @@ t = 16.0; step = 0.125
 while t < 17.0:
     add(t, hat(0.03), 0.13); t += step; step = max(0.03125, step*0.86)
 add(15.6, riser(1.4), 0.22)
+t = 22.0; step = 0.125
+while t < 23.0:
+    add(t, hat(0.03), 0.13); t += step; step = max(0.03125, step*0.86)
+add(21.6, riser(1.4), 0.24)
 
 # impacts on the cuts, the swap hardest
-for c, g in [(2.0,1.0), (6.0,0.6), (10.0,0.5), (11.0,1.35), (16.0,0.5), (17.0,1.4), (22.0,0.7), (24.0,1.0)]:
+for c, g in [(2.0,1.0), (6.0,0.6), (10.0,0.5), (11.0,1.35), (16.0,0.5), (17.0,1.4), (22.0,0.5), (23.0,1.45),
+             (24.0,0.6), (26.0,0.6), (30.0,0.7), (32.0,1.0)]:
     add(c, impact(big=g), 0.50)
-for c in [2.0, 11.0, 17.0, 24.0]:
+for c in [2.0, 11.0, 17.0, 23.0, 32.0]:
     add(c-0.9, rev_swell(0.9), 0.14)
 # strobe ticks in the cold open (matching STROBES in glock.html)
 for s in [0.30, 0.78, 1.22, 1.62]:
@@ -177,8 +182,8 @@ while bar < DRUM1:
 for i in range(N): L[i]*=duck[i]; R[i]*=duck[i]
 
 # fade the last half second
-for i in range(idx(25.5), N):
-    g = 1 - (i-idx(25.5))/(N-idx(25.5)); L[i]*=g; R[i]*=g
+for i in range(idx(33.5), N):
+    g = 1 - (i-idx(33.5))/(N-idx(33.5)); L[i]*=g; R[i]*=g
 
 peak = max(max(abs(v) for v in L), max(abs(v) for v in R)) or 1
 g = 0.85/peak

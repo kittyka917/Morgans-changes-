@@ -75,7 +75,7 @@ const CONFIG = {
   letterbox: 0
 };
 
-const W = 1920, H = 1080, FPS = 30, DURATION = 26.0;
+const W = 1920, H = 1080, FPS = 30, DURATION = 34.0;
 const TOTAL = Math.round(DURATION * FPS);
 
 /* Palette sampled from the weapon finish. Same keys as the city promo, so
@@ -980,7 +980,7 @@ function sHero2(t, u, n){
 
 /* =======================================================================
    MORGIE'S GUN SHOWCASE — personal-project version.
-   Adds finish 03 (black slide) from the viewer screen recording.
+   Adds finish 03 (black slide) and finish 04 (BLOSSOM) from viewer screen recordings.
    ======================================================================= */
 const BRAND = 'MORGIE’S', BRAND_SUB = 'GUN SHOWCASE';
 
@@ -1169,27 +1169,223 @@ function sHero3(t, u, n){
   vignette(0.66);
 }
 
-/* 0:22 — all three finishes */
-function sTrio(t, u, n){
-  stageBG(t, 0.9, W/2, H*0.48);
-  bigWord('THREE FINISHES', t, 0.42, H*0.60, 260, -10);
+/* =======================================================================
+   FINISH 04 — BLOSSOM, from a second viewer screen recording.
+   1280x720 @60fps on a pure-black stage; blossom/extract.sh keeps the 720x520
+   window at (280,130), which holds the gun at every angle and none of the
+   viewer UI. b0001..b0072 carry Medal's "Ready to clip" overlay — never used.
+   Clip seconds here are (frame-1)/60, as for finish 03.
+   ======================================================================= */
+const BL_FPS = 60, BL_LO = 73, BL_HI = 828, BL_W = 720, BL_H = 520;
+const BLC = new Map();
+let BL_MISS = null;
+function BLK(k){
+  k = Math.max(BL_LO, Math.min(BL_HI, k|0));
+  const c = BLC.get(k);
+  if (c){ BLC.delete(k); BLC.set(k, c); return c; }
+  if (BL_MISS) BL_MISS.add(k);
+  return null;
+}
+async function loadBl(k){
+  if (BLC.has(k)) return;
+  const im = new Image();
+  im.src = 'blossom/src/b' + String(k).padStart(4,'0') + '.jpg';
+  await im.decode();
+  const c = mk(BL_W,BL_H), cx = c.getContext('2d', {willReadFrequently:true});
+  cx.drawImage(im, 0, 0);
+  const id = cx.getImageData(0,0,BL_W,BL_H), d = id.data;
+  // Pure-black stage (every sample read 0,0,0): alpha from the brightest
+  // channel, and edge pixels un-mixed against black so there's no dark fringe.
+  for (let i = 0; i < d.length; i += 4){
+    const m = Math.max(d[i], d[i+1], d[i+2]);
+    let a = (m - 6) / 22; a = a < 0 ? 0 : a > 1 ? 1 : a; a = a*a*(3 - 2*a);
+    if (a <= 0){ d[i+3] = 0; continue; }
+    if (a < 1){ d[i] = Math.min(255, d[i]/a); d[i+1] = Math.min(255, d[i+1]/a); d[i+2] = Math.min(255, d[i+2]/a); }
+    d[i+3] = a*255;
+  }
+  cx.putImageData(id, 0, 0);
+  BLC.set(k, c);
+  while (BLC.size > 24) BLC.delete(BLC.keys().next().value);
+}
+const BLB = mk(BL_W,BL_H), blb = BLB.getContext('2d');
+function blFrame(sec){                         // frame-blended, like clipFrame
+  const kf = 1 + sec*BL_FPS, k0 = Math.floor(kf), f = kf - k0;
+  const a = BLK(k0), b = f > 0.02 ? BLK(k0+1) : null;
+  if (!a) return null;
+  blb.globalCompositeOperation='source-over'; blb.globalAlpha=1;
+  blb.clearRect(0,0,BL_W,BL_H);
+  blb.drawImage(a,0,0);
+  if (b){ blb.globalAlpha = f; blb.drawImage(b,0,0); blb.globalAlpha = 1; }
+  return BLB;
+}
+function blRect(scale, cx, cy, ax, ay){          // place crop point (ax,ay) at stage (cx,cy)
+  return { s: scale, w: BL_W*scale, h: BL_H*scale, x: cx - ax*scale, y: cy - ay*scale };
+}
+function drawBl(sec, r, alpha){
+  const c = blFrame(sec); if (!c) return null;
+  x.save(); x.globalAlpha = alpha == null ? 1 : alpha;
+  x.shadowColor = 'rgba(255,110,185,0.45)'; x.shadowBlur = 20 * Math.max(0.6, r.s/1.6);
+  // The viewer lights the white frame near 255; through bloom it clips flat.
+  // Pull it down so the grip keeps its shading.
+  x.filter = 'brightness(0.82) contrast(1.10) saturate(1.12)';
+  x.drawImage(c, r.x, r.y, r.w, r.h); x.restore();
+  return c;
+}
+function shineBl(sec, r, p, strength){
+  if (p <= 0 || p >= 1) return;
+  const c = blFrame(sec); if (!c) return;
+  shn.setTransform(1,0,0,1,0,0); shn.globalAlpha=1; shn.globalCompositeOperation='source-over';
+  shn.clearRect(0,0,W,H);
+  shn.drawImage(c, r.x, r.y, r.w, r.h);
+  shn.globalCompositeOperation='source-in';
+  const cx = mix(r.x - 300, r.x + r.w + 300, p);
+  const gr = shn.createLinearGradient(cx-200, 0, cx+200, H);
+  gr.addColorStop(0,'rgba(255,240,248,0)'); gr.addColorStop(0.5,'rgba(255,240,248,1)'); gr.addColorStop(1,'rgba(255,240,248,0)');
+  shn.fillStyle = gr; shn.fillRect(0,0,W,H);
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha = strength*Math.sin(p*Math.PI);
+  x.drawImage(SHN,0,0); x.restore();
+}
+/* petals thrown outward from (cx,cy) — the bloom that opens finish 04 */
+function petalBurst(cx, cy, p, seed){
+  if (p <= 0 || p >= 1) return;
+  const r = prng(seed);
+  for (let i=0;i<90;i++){
+    const ang = r()*Math.PI*2, reach = 500 + r()*900, size = 14 + r()*46;
+    const d = eOutCubic(p) * reach, spin = (r()-0.5)*9, ph = r()*6.28;
+    const a = (1 - p) * (0.55 + 0.45*r());
+    x.save();
+    x.translate(cx + Math.cos(ang)*d, cy + Math.sin(ang)*d + p*p*120);
+    x.rotate(ph + spin*p); x.scale(Math.cos(ph + p*7), 1);
+    x.globalAlpha = a;
+    const pg = x.createLinearGradient(0,-size*0.5,0,size*0.5);
+    pg.addColorStop(0,'#ffd6ea'); pg.addColorStop(1,'#ff6fb1');
+    x.fillStyle = pg;
+    if (i % 7 === 0) blossomPath(x, size); else { petalPath(x, size); x.fill(); }
+    x.restore();
+  }
+}
+
+const BL_SCALE = 1.6;                                    // modest upscale — 720p footage, like finish 03
+const V4_C = [360, 240];                                 // turntable centre in the crop; kept fixed so the gun never jumps
+const V4_STILL = 2.800;                                  // b0169: b0121..b0193 is a dead-still side-on hold
+const V4_SPIN0 = 4.000, V4_SPIN1 = 8.800;                // b0241 -> b0529: one full turn
+const V4_HOLD = 9.600;                                   // b0577: side-on again, after the turn
+
+/* 0:22 — finish 03 holds; an iris of petals opens on finish 04 at the 0:23 clap */
+function sReveal4(t, u, n){
+  stageBG(t, 1 + 0.6*band(u,0.45,0.75,0.03,0.2));
+  bigWord('MORGIE', t, 0.6*(1 - cl((u-0.45)/0.05)), H*0.62, 480, -12);
+  bigWord('BLOSSOM', t, 0.6*cl((u-0.5)/0.12), H*0.62, 420, 10);
+  petals(t, 0.9, 0, 5151);
+  const cx = W/2, cy = H*0.47;
+  const r3 = clipRect(CLIP3_SCALE*mix(1, 1.05, eInOut(cl(u/0.5))), cx, cy, V3_GUN_C[0], V3_GUN_C[1]);
+  const r4 = blRect(BL_SCALE*mix(1.10, 1, eOutCubic(cl((u-0.45)/0.45))), cx, cy, V4_C[0], V4_C[1]);
+  const v4 = u < 0.6 ? V4_STILL : mix(V4_STILL, V4_SPIN0, ((u-0.6)/0.4)**2);   // eases into the spin's first frame
+  const ip = eInOut(cl((u-0.30)/0.20));                  // iris 22.60s -> 23.00s, fully open on the clap
+  const R = ip * 1320;
+  if (ip < 1){
+    x.save(); x.beginPath(); x.rect(0,0,W,H); x.arc(cx, cy, R, 0, Math.PI*2, true); x.clip('evenodd');
+    drawClip(V3_HOLD, r3, 1); x.restore();
+  }
+  if (ip > 0){
+    x.save(); x.beginPath(); x.arc(cx, cy, R, 0, Math.PI*2); x.clip();
+    drawBl(v4, r4, 1); x.restore();
+  }
+  if (ip > 0.001 && ip < 0.999){
+    x.save(); x.globalCompositeOperation='lighter';
+    const rg = x.createRadialGradient(cx, cy, Math.max(0, R-110), cx, cy, R+40);
+    rg.addColorStop(0,'rgba(255,79,163,0)'); rg.addColorStop(0.75,'rgba(255,120,190,0.45)'); rg.addColorStop(1,'rgba(255,79,163,0)');
+    x.fillStyle = rg; x.fillRect(0,0,W,H);
+    glow('#ff4fa3', 30, ()=>{ x.strokeStyle='#fff0f7'; x.lineWidth=3; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI*2); x.stroke(); });
+    x.restore();
+  }
+  petalBurst(cx, cy, cl((u-0.30)/0.55), 4404);
+  shineBl(v4, r4, (u-0.55)/0.3, 0.32);
+  const ta = band(u,0.5,1,0.06,0.04);
+  if (ta > 0.002){
+    x.save(); x.globalAlpha = ta;
+    const s2 = mix(1.25, 1, eOutQuint((u-0.5)/0.18));
+    x.translate(126, H-170); x.scale(s2, s2); x.translate(-126, -(H-170));
+    ctext('// FINISH 04', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('BLOSSOM', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
+    x.restore();
+  }
+  petals(t, 0.9, 1, 5252);
+  vignette(0.66);
+  flash(band(u,0.49,0.62,0.006,0.1)*0.9, '#ffe0f0');
+}
+
+/* 0:24 — one full turn on the turntable */
+function sSpin4(t, u, n){
+  stageBG(t, 1.1);
+  bigWord('BLOSSOM', t, 0.6, H*0.62, 420, 10);
+  petals(t, 1.2, 0, 5151);
+  const src = mix(V4_SPIN0, V4_SPIN1, u);
+  const r = blRect(BL_SCALE, W/2, H*0.47, V4_C[0], V4_C[1]);
+  drawBl(src, r, 1);
+  shineBl(src, r, (u-0.62)/0.3, 0.30);
+  const ta = 1 - cl((u-0.30)/0.10);
+  if (ta > 0.002){
+    x.save(); x.globalAlpha = ta;
+    ctext('// FINISH 04', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('BLOSSOM', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
+    x.restore();
+  }
+  petals(t, 1.2, 1, 5252);
+  vignette(0.66);
+}
+
+/* 0:26 — settles out of the turn into a side-on hold; callouts */
+const V4_CALLS = [ // [cropX, cropY, labelX, labelY, side, label, sub, start] — measured on b0577
+  [ 344,  95,  470, 190, -1, '“BLOSSOM” SLIDE',  'PINK, ENGRAVED IN WHITE',      0.30],
+  [ 531,  94, 1450, 200,  1, 'PINK SUPPRESSOR',  'CHERRY-BRANCH PRINT',          0.40],
+  [ 194, 201,  470, 470, -1, 'SAKURA VINES',     'WRAPPED SLIDE TO SUPPRESSOR',  0.50],
+  [ 275, 150, 1450, 560,  1, 'WHITE FRAME',      'PINK TRIGGER · PINK STIPPLING', 0.60],
+  [ 150, 325,  470, 760, -1, 'SAKURA MAG',       'EXTENDED · WHITE BASEPLATE',   0.70]
+];
+function sHero4(t, u, n){
+  stageBG(t, 1);
+  bigWord('BLOSSOM', t, 0.6, H*0.62, 420, 10);
   petals(t, 1, 0, 5151);
-  const S = mix(0.43, 0.46, eInOut(u)), gap = 600, cy = H*0.47;
+  const src = mix(V4_SPIN1, V4_HOLD, eOutCubic(cl(u/0.28)));
+  const r = blRect(BL_SCALE, W/2, H*0.47, V4_C[0], V4_C[1]);
+  drawBl(src, r, 1);
+  shineBl(src, r, (u-0.22)/0.22, 0.30);
+  for (let i=0;i<V4_CALLS.length;i++){
+    const [sx, sy, lx, ly, side, label, sub, s0] = V4_CALLS[i];
+    callout(r.x + sx*r.s, r.y + sy*r.s, lx, ly, i+12, label, sub, cl((u - s0)/0.12) * (1 - cl((u-0.95)/0.05)), side);
+  }
+  petals(t, 1, 1, 5252);
+  vignette(0.66);
+}
+
+/* 0:30 — all four finishes */
+function sQuad(t, u, n){
+  stageBG(t, 0.9, W/2, H*0.48);
+  bigWord('FOUR FINISHES', t, 0.42, H*0.60, 250, -10);
+  petals(t, 1, 0, 5151);
+  const S = mix(0.35, 0.37, eInOut(u)), gap = 440, cy = H*0.47;
   const fl = (k)=>Math.sin(t*1.3 + k)*7;
-  const ins = [0, 0.05, 0.10].map(d => eOutQuint((u - d)/0.22));
+  const ins = [0, 0.04, 0.08, 0.12].map(d => eOutQuint((u - d)/0.22));
+  const cxs = [-1.5, -0.5, 0.5, 1.5].map(k => W/2 + k*gap);
   // 01 and 02: render; gun centre ~(685,530) in source px
   const rect = (s, cx, cy2) => ({ s, w:1440*s, h:1080*s, x: cx - 685*s, y: cy2 - 530*s });
-  const r1 = rect(S, W/2 - gap - (1-ins[0])*200, cy + fl(0));
-  const r2 = rect(S, W/2,                        cy + fl(2) + (1-ins[1])*120);
+  const r1 = rect(S, cxs[0] - (1-ins[0])*200, cy + fl(0));
+  const r2 = rect(S, cxs[1],                  cy + fl(2) + (1-ins[1])*120);
   drawGun(V1_HOLD, r1, ins[0]);
   drawGun(V2_MATCH, r2, ins[1]);
   const cs = S * M3_SCALE * 0.97;
-  const r3 = clipRect(cs, W/2 + gap + (1-ins[2])*200, cy + fl(4), V3_GUN_C[0], V3_GUN_C[1]);
+  const r3 = clipRect(cs, cxs[2], cy + fl(4) + (1-ins[2])*120, V3_GUN_C[0], V3_GUN_C[1]);
   drawClip(V3_HOLD, r3, ins[2]);
+  // 04: sized off slide-to-mag height (859 render px ~ 345 crop px at b0577), a little smaller for the suppressor
+  // 0.86 and the 345 anchor keep its crop x 100..620 (suppressor included) inside x 1415..1850,
+  // between the divider and the frame guide
+  const r4 = blRect(S * 859/345 * 0.86, cxs[3] + (1-ins[3])*200, cy + fl(6), 345, V4_C[1]);
+  drawBl(V4_HOLD, r4, ins[3]);
   // dividers
   const dv = eOutExpo(cl((u-0.12)/0.25));
   x.save(); x.globalCompositeOperation='lighter';
-  for (const dx of [-gap/2, gap/2]){
+  for (const dx of [-gap, 0, gap]){
     const dg = x.createLinearGradient(0,H*0.12,0,H*0.88);
     dg.addColorStop(0,'rgba(255,79,163,0)'); dg.addColorStop(0.5,'rgba(255,140,200,0.7)'); dg.addColorStop(1,'rgba(255,79,163,0)');
     x.fillStyle = dg; x.fillRect(W/2 + dx - 1, H/2 - H*0.38*dv, 2, H*0.76*dv);
@@ -1198,9 +1394,9 @@ function sTrio(t, u, n){
   const la = cl((u-0.26)/0.15);
   if (la > 0){
     x.save(); x.globalAlpha = la;
-    [['01','CASH WRAP',-gap],['02','PINK SLIDE',0],['03','BLACK SLIDE',gap]].forEach(([k,l,dx])=>{
-      ctext(k, W/2+dx, H*0.83, 22, {mono:true,track:4,sq:1,color:C.lime});
-      ctext(l, W/2+dx, H*0.83+52, 48, {sq:0.78,track:2,chromeFill:true});
+    [['01','CASH WRAP'],['02','PINK SLIDE'],['03','BLACK SLIDE'],['04','BLOSSOM']].forEach(([k,l],i)=>{
+      ctext(k, cxs[i], H*0.83, 22, {mono:true,track:4,sq:1,color:C.lime});
+      ctext(l, cxs[i], H*0.83+50, 42, {sq:0.78,track:2,chromeFill:true});
     });
     x.restore();
   }
@@ -1208,7 +1404,7 @@ function sTrio(t, u, n){
   vignette(0.66);
 }
 
-/* 0:24 — end card */
+/* 0:32 — end card */
 function sEndM(t, u, n){
   stageBG(t, 0.9, W/2, H*0.45);
   petals(t, 1, 0, 5151);
@@ -1228,7 +1424,7 @@ function sEndM(t, u, n){
   if (ca > 0.002){
     x.save(); x.globalAlpha = ca;
     ctext(BRAND_SUB, W/2, cy + 130, 64, {sq:0.80,track:14,color:C.chrome});
-    ctext('// CUSTOM GLOCK · THREE FINISHES', W/2, cy + 190, 22, {mono:true,track:8,sq:1,color:'rgba(255,190,225,0.85)'});
+    ctext('// CUSTOM GLOCK · FOUR FINISHES', W/2, cy + 190, 22, {mono:true,track:8,sq:1,color:'rgba(255,190,225,0.85)'});
     x.restore();
   }
   petals(t, 1, 1, 5252);
@@ -1243,7 +1439,7 @@ const G_PINK = 'contrast(108%) saturate(106%) brightness(100%)';
 const GLITCH_AT = (centre, width) => (t,u,n) => ({ intensity: Math.max(0, 1 - Math.abs(u-centre)/width)*1.5,
   interval:0, duration:1, slices:20, shift:34, rgbShift:7, blocks:0.4, noise:0.25 });
 const SCENES = [
-  // 120 BPM, 2.0s bars; both finish swaps land on the clap at 0:11 and 0:17.
+  // 120 BPM, 2.0s bars; the finish swaps land on the claps at 0:11, 0:17 and 0:23.
   { t0: 0.00, t1: 2.00, fn:sOpen,    ui:0.0, hh:1.2, cam:(t,u)=>{ CAM.scale = 1.0; },
     post:{bloom:0.14, hal:0.10, ab:1.6, ray:0, grade:G_PINK, weave:1.0},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: STROBE_HIT*1.4, interval:0, duration:1,
@@ -1262,16 +1458,23 @@ const SCENES = [
     fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
   { t0:18.00, t1:22.00, fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); },
     post:{bloom:0.14, hal:0.10, ab:1.2, ray:0.06, rayX:W/2, rayY:H*0.45, grade:G_PINK, weave:0.6} },
-  { t0:22.00, t1:24.00, fn:sTrio,    ui:1.0, hh:0.8, cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); },
+  { t0:22.00, t1:24.00, fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
+    post:{bloom:0.16, hal:0.12, ab:1.4, ray:0.12, rayX:W/2, rayY:H*0.47, grade:G_PINK, weave:0.7},
+    fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.05) } },
+  { t0:24.00, t1:26.00, fn:sSpin4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.03,1.0,eOutQuint(u)); },
+    post:{bloom:0.15, hal:0.11, ab:1.3, ray:0.10, rayX:W/2, rayY:H*0.47, grade:G_PINK, weave:0.6} },
+  { t0:26.00, t1:30.00, fn:sHero4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); },
+    post:{bloom:0.14, hal:0.10, ab:1.2, ray:0.06, rayX:W/2, rayY:H*0.45, grade:G_PINK, weave:0.6} },
+  { t0:30.00, t1:32.00, fn:sQuad,    ui:1.0, hh:0.8, cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); },
     post:{bloom:0.13, hal:0.09, ab:1.2, ray:0, grade:G_PINK, weave:0.6} },
-  { t0:24.00, t1:26.00, fn:sEndM,    ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); },
+  { t0:32.00, t1:34.00, fn:sEndM,    ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); },
     post:{bloom:0.16, hal:0.12, ab:1.2, ray:0.12, rayX:W/2, rayY:H*0.47, grade:G_PINK, weave:0.6} }
 ];
 const CUTS = SCENES.map(s => s.t0).filter(v => v > 0);
 
 function leak(t){
   let best = -1;
-  for (const c of CUTS.concat([11.0, 17.0])){ if (t >= c && t - c < 0.40) best = t - c; }
+  for (const c of CUTS.concat([11.0, 17.0, 23.0])){ if (t >= c && t - c < 0.40) best = t - c; }
   if (best < 0) return;
   const p = best/0.40, a = (1-p)*(1-p)*0.24;
   x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=a;
@@ -1300,11 +1503,12 @@ function drawScene(n){
   return { t, u, sc };
 }
 window.prepFrame = async function(n){
-  SRC_MISS = new Set(); CLIP_MISS = new Set();
+  SRC_MISS = new Set(); CLIP_MISS = new Set(); BL_MISS = new Set();
   try { drawScene(n); } catch(e) {}
-  const a = [...SRC_MISS], b = [...CLIP_MISS]; SRC_MISS = null; CLIP_MISS = null;
+  const a = [...SRC_MISS], b = [...CLIP_MISS], c = [...BL_MISS]; SRC_MISS = null; CLIP_MISS = null; BL_MISS = null;
   for (const k of a) await loadSrc(k);
   for (const k of b) await loadClip(k);
+  for (const k of c) await loadBl(k);
 };
 window.renderFrame = function(n){
   const { t, u, sc } = drawScene(n);

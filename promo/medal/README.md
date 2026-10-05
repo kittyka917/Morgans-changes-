@@ -1,8 +1,9 @@
 # Morgie's Gun Showcase
 
-The personal-project version of the Glock showcase: 26 seconds, 1080p/30, all
-MainStreet branding removed, and a third finish added from a viewer screen
-recording. `glock.html` (the MainStreet version) is untouched; this is
+The personal-project version of the Glock showcase: 34 seconds, 1080p/30, all
+MainStreet branding removed, and two more finishes added from viewer screen
+recordings — finish 03 (black slide, this folder) and finish 04 (BLOSSOM,
+`blossom/`). `glock.html` (the MainStreet version) is untouched; this is
 `morgie.html`.
 
 | Time | Shot |
@@ -10,10 +11,14 @@ recording. `glock.html` (the MainStreet version) is untouched; this is
 | 0:00–0:16 | As the original: strobed open, finish 01, details, wipe to finish 02, finish 02 details |
 | 0:16 | Camera pulls back; a scan line wipes finish 02 into **finish 03**; drop at 0:17 |
 | 0:18 | Finish 03 glides into a side-on hold; four callouts |
-| 0:22 | All three finishes side by side |
-| 0:24 | End card: MORGIE'S GUN SHOWCASE |
+| 0:22 | An iris of petals opens finish 03 onto **finish 04, BLOSSOM**; drop at 0:23 |
+| 0:24 | BLOSSOM does one full turn |
+| 0:26 | Settles side-on; five callouts |
+| 0:30 | All four finishes side by side |
+| 0:32 | End card: MORGIE'S GUN SHOWCASE |
 
-Finish titles are descriptive — `CASH WRAP`, `PINK SLIDE`, `BLACK SLIDE` —
+Finish titles are descriptive — `CASH WRAP`, `PINK SLIDE`, `BLACK SLIDE`,
+and `BLOSSOM` (the name the viewer gives finish 04) —
 since finishes 02 and 03 both carry MORGAN on the slide. The brand strings are
 `BRAND` / `BRAND_SUB` at the top of the new block in `morgie.html`.
 
@@ -22,7 +27,8 @@ since finishes 02 and 03 both carry MORGAN on the slide. The brand strings are
 ```bash
 ./glock/extract.sh path/to/render.mp4          # finishes 01 and 02 (once)
 ./medal/extract.sh path/to/recording.mp4       # finish 03 (once)
-PAGE=morgie.html OUTDIR=mframes node build.js  # 780 frames, ~4 min on 4 cores
+./blossom/extract.sh path/to/blossom.mp4       # finish 04 (once)
+PAGE=morgie.html OUTDIR=mframes node build.js  # 1020 frames
 python3 score_morgie.py                        # score_morgie.wav
 ffmpeg -y -framerate 30 -i mframes/f%05d.jpg -i score_morgie.wav \
   -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r 30 \
