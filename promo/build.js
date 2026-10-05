@@ -11,7 +11,8 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const { execFileSync } = require('child_process');
 
-const ROOT = __dirname, OUT = path.join(ROOT,'frames');
+const ROOT = __dirname, OUT = path.join(ROOT, process.env.OUTDIR || 'frames');
+const PAGE = process.env.PAGE || 'promo.html';
 const MEDIA = path.join(ROOT,'media'), CACHE = path.join(MEDIA,'_cache');
 const WORKERS = parseInt(process.env.WORKERS || '4', 10);
 const QUALITY = parseFloat(process.env.QUALITY || '0.96');
@@ -122,7 +123,7 @@ async function openPage(b, base, manifest){
                                reducedMotion:'no-preference' });
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.addInitScript(m => { window.MEDIA_MANIFEST = m; }, manifest);
-  await pg.goto(base + '/promo.html');
+  await pg.goto(base + '/' + PAGE);
   await pg.evaluate(() => window.ASSETS);   // resolves after fx engines load too
   await pg.waitForTimeout(200);
   return { pg, errs };
@@ -131,7 +132,8 @@ async function worker(id, from, to, base, manifest){
   const b = await chromium.launch({ args:['--force-device-scale-factor=1','--hide-scrollbars','--disable-lcd-text'] });
   const { pg, errs } = await openPage(b, base, manifest);
   for (let n = from; n < to; n++){
-    const d = await pg.evaluate(([i,q]) => {
+    const d = await pg.evaluate(async ([i,q]) => {
+      if (window.prepFrame) await window.prepFrame(i);   // lazy source frames (glock.html)
       window.renderFrame(i);
       return document.getElementById('stage').toDataURL('image/jpeg', q);
     }, [n, QUALITY]);
