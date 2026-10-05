@@ -8,7 +8,7 @@ import math, struct, random
 from array import array
 
 SR   = 44100
-DUR  = 36.0
+DUR  = 40.0
 BPM  = 120.0
 BEAT = 60.0 / BPM          # 0.5s
 BAR  = BEAT * 4            # 2.0s
@@ -111,14 +111,14 @@ roots = {0:A1, 1:A1, 2:A1*(2**(ature:=0)) }  # placeholder replaced below
 def semi(base, n): return base * (2 ** (n/12.0))
 
 # Section roots by time (t_start, root semitone offset from A)
-sections = [(0,0), (6,0), (10,-4), (14,3), (18,-4), (22,5), (26,0), (30,0)]
+sections = [(0,0), (6,0), (10,-4), (14,3), (18,-4), (22,5), (26,0), (30,0), (34,0)]
 def root_at(t):
     r = 0
     for st, off in sections:
         if t >= st: r = off
     return semi(A1, r)
 
-CUTS = [2.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0]
+CUTS = [6.0, 10.0, 14.0, 18.0, 22.0, 26.0, 30.0, 34.0]
 
 # --- drone (whole piece) ---
 for i in range(N):
@@ -136,17 +136,17 @@ for i in range(N):
 # --- kicks: four-on-the-floor from bar 3 (t=6) to t=32 ---
 K = kick()
 t = 6.0
-while t < 30.0:
+while t < 34.0:
     g = 0.95
-    if t >= 26.0: g = 1.12                     # montage pushes
+    if t >= 30.0: g = 1.12                     # montage pushes
     add(L, t, K, g); add(R, t, K, g)
     t += BEAT
 # final downbeat
-add(L, 30.0, K, 1.0); add(R, 30.0, K, 1.0)
+add(L, 34.0, K, 1.0); add(R, 34.0, K, 1.0)
 
 # --- sub bass: root on beats 1 and 3.5 of each bar, from t=6 ---
 bar_t = 6.0
-while bar_t < 30.0:
+while bar_t < 34.0:
     f = root_at(bar_t)
     s1 = sub(0.46, f, rel=0.55)
     s2 = sub(0.30, f*1.5, rel=0.9)
@@ -156,14 +156,14 @@ while bar_t < 30.0:
 
 # --- hats: offbeat 8ths from t=10 ---
 t = 10.0 + BEAT/2
-while t < 29.5:
+while t < 33.5:
     h = hat()
     g = 0.16 if (round((t-10.0)/BEAT) % 2) else 0.10
     add(L, t, h, g*1.0); add(R, t, h, g*0.78)   # slight width
     t += BEAT
 # montage double-time
-t = 26.0
-while t < 30.0:
+t = 30.0
+while t < 34.0:
     h = hat(0.04, 55.0)
     add(L, t, h, 0.12); add(R, t, h, 0.15)
     t += BEAT/2
@@ -171,7 +171,7 @@ while t < 30.0:
 # --- arpeggio: A minor triad figure during feature sections ---
 # pattern of semitone offsets (A minor: 0,3,7,12)
 pat = [0, 7, 12, 3, 12, 7, 15, 12]
-for seg_start, seg_end in [(10,14), (14,18), (18,22), (22,26)]:
+for seg_start, seg_end in [(14,18), (18,22), (22,26), (26,30)]:
     base = root_at(seg_start) * 4            # up two octaves
     t = seg_start
     k = 0
@@ -186,14 +186,14 @@ for seg_start, seg_end in [(10,14), (14,18), (18,22), (22,26)]:
 for c in CUTS:
     im = impact()
     g = 1.0
-    if c in (2.0, 30.0): g = 1.25
+    if c in (6.0, 34.0): g = 1.25
     add(L, c, im, 0.55*g); add(R, c, im, 0.55*g)
 # opening swell + end impact
 add(L, 0.0, noise_hit(2.0, decay=2.0, lp=0.02), 0.30)
 add(R, 0.0, noise_hit(2.0, decay=2.0, lp=0.02), 0.30)
 
 # --- risers into the logo, the montage and the end card ---
-for t0, d in [(0.6, 1.4), (24.0, 2.0), (28.6, 1.4)]:
+for t0, d in [(4.4, 1.6), (28.0, 2.0), (32.6, 1.4)]:
     rs = riser(t0, d)
     add(L, t0, rs, 0.16); add(R, t0, rs, 0.16)
 
@@ -214,14 +214,14 @@ for c in CUTS:
 
 # --- montage stabs on each word (10 words over 26..30 => 0.4s each) ---
 for i in range(10):
-    t = 26.0 + i*0.4
+    t = 30.0 + i*0.4
     st = noise_hit(0.22, decay=26.0, lp=0.5)
     add(L, t, st, 0.20); add(R, t, st, 0.20)
 
 # ---------- sidechain duck on kick ----------
 duck = [1.0]*N
 t = 6.0
-while t < 30.05:
+while t < 34.05:
     i0 = idx(t); span = int(0.26*SR)
     for k in range(span):
         j = i0+k

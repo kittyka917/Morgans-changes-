@@ -8,15 +8,31 @@ no video editor project to lose and no footage to re-license.
 
 | Time | Section | On screen |
 |---|---|---|
-| 0:00 | Cold open | Signal-acquired line over the city grid |
-| 0:02 | Badge | The MainStreet RP badge, chrome shine sweep |
-| 0:06 | Hook | "It's not the city. It's who's in it." |
-| 0:10 | §01 Make your name | Outfits, barber, live clothing previews |
-| 0:14 | §02 Find your people | Party banners, crew chips, city-wide radio, chat |
-| 0:18 | §03 What's on | AFL showcase, airdrops, the streets, event ticker |
-| 0:22 | §04 Nobody gets left | AI medic on `F`, crutch + recovery, new death/respawn |
-| 0:26 | Montage | HUD, hunger & thirst, loadscreen, interaction, custom weapons… |
-| 0:30 | End card | Badge, "Come be part of it", Discord call-to-action |
+| 0:00 | The drive | A night drive into the city, car ahead, wet road |
+| 0:06 | Badge | The MainStreet RP badge, chrome shine sweep |
+| 0:10 | Hook | "It's not the city. It's who's in it." |
+| 0:14 | §01 Make your name | Outfits, barber, live clothing previews |
+| 0:18 | §02 Find your people | Party banners, crew chips, city-wide radio, chat |
+| 0:22 | §03 What's on | AFL showcase, airdrops, the streets, event ticker |
+| 0:26 | §04 Nobody gets left | AI medic on `F`, crutch + recovery, new death/respawn |
+| 0:30 | Montage | HUD, hunger & thirst, loadscreen, interaction, custom weapons… |
+| 0:34 | End card | Badge, "Come be part of it", Discord call-to-action |
+
+### The drive
+
+The opening is a real perspective projection, not a flat scrolling grid.
+Everything is placed in world units — road, kerbs, centre dashes, streetlight
+poles and heads, two rows of buildings, the car ahead — and run through
+`roadProject(x, y, z)` with a fixed camera height, so objects scale and
+separate correctly as they approach. Distance fog sinks far geometry into the
+haze, lights pool and smear on the wet surface, and the speed ramps on an
+exponential ease with streaks radiating from the vanishing point.
+
+Tuning lives in `RD` at the top of the scene (focal length, camera height, road
+width, lamp spacing, horizon). The things that needed the most care: the sky
+has to stay near-black with only a tight bloom at the vanishing point or it
+reads as a flat green wall, and `drawLamp` clamps its radius or passing lamps
+blow up into frame-filling discs.
 
 The cut runs at 120 BPM with 2-second bars, and **every scene change lands on a
 bar line**, so the music hits the cuts rather than drifting against them.

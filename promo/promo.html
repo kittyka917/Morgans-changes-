@@ -80,7 +80,7 @@ const CONFIG = {
   letterbox: 0                // 0 = full frame; raise for a cinema crop
 };
 
-const W = 1920, H = 1080, FPS = 30, DURATION = 36.0;
+const W = 1920, H = 1080, FPS = 30, DURATION = 40.0;
 const TOTAL = Math.round(DURATION * FPS);
 
 /* Palette sampled from the MainStreet RP badge. */
@@ -650,6 +650,262 @@ function sOpen(t, u, n){
   flash(band(u,0.90,1.02,0.03,0.10)*0.9, C.pale);
 }
 
+/* ---------------------------------------------------------------------
+   0:00 — the drive.  A real perspective projection down a wet night road:
+   camera at a fixed height looking along +z, everything placed in world
+   units and projected, so streetlights, buildings and the car ahead scale
+   and separate correctly instead of being faked with a flat grid.
+   --------------------------------------------------------------------- */
+const RD = { f: 1000, camH: 2.4, roadHalf: 7.4, lightSpacing: 26, horizonY: 0.495 };
+
+function roadProject(wx, wy, wz){
+  const z = Math.max(wz, 0.35);
+  const sc = RD.f / z;
+  return { x: W/2 + wx*sc, y: H*RD.horizonY + (RD.camH - wy)*sc, sc };
+}
+/* Distance fog: far things sink into the haze. */
+function fogAt(z){ return Math.max(0, Math.min(1, 1 - (z - 12) / 240)); }
+
+function drawLamp(px, py, r, a, col){
+  if (a <= 0.004 || r <= 0.2) return;
+  r = Math.min(r, 230);                 // passing lamps otherwise fill the frame
+  const g = x.createRadialGradient(px, py, 0, px, py, r);
+  g.addColorStop(0,   col || 'rgba(255,248,214,0.95)');
+  g.addColorStop(0.25,'rgba(255,230,150,0.42)');
+  g.addColorStop(1,   'rgba(255,200,90,0)');
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha = a;
+  x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, Math.PI*2); x.fill();
+  x.restore();
+}
+/* Wet asphalt reflection: a vertical smear under a light source. */
+function wetSmear(px, py, w, h, a, col){
+  if (a <= 0.004) return;
+  x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha = a;
+  const g = x.createLinearGradient(px, py, px, py + h);
+  g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(px - w/2, py, w, h);
+  x.restore();
+}
+
+function sDrive(t, u, n){
+  // speed ramp: roll in slowly, then pull hard
+  const spd = mix(18, 86, eInOutExpo(cl((u - 0.05) / 0.72)));
+  const dist = 18*u*6 + (86-18)*0.5*Math.pow(cl((u-0.05)/0.72),2)*6*0.72;
+  const camZ = dist * 6;
+  const hy = H*RD.horizonY;
+
+  // --- sky + haze ---
+  x.fillStyle = '#04080a'; x.fillRect(0,0,W,H);
+  const sky = x.createLinearGradient(0,0,0,hy+10);
+  sky.addColorStop(0,   'rgba(2,5,3,1)');
+  sky.addColorStop(0.70,'rgba(4,11,6,1)');
+  sky.addColorStop(1,   'rgba(9,24,11,1)');
+  x.fillStyle = sky; x.fillRect(0,0,W,hy+10);
+  // light pollution: a tight bloom where the city sits, not a wash
+  const hz = x.createRadialGradient(W/2, hy, 8, W/2, hy, W*0.30);
+  hz.addColorStop(0,'rgba(110,240,70,0.20)');
+  hz.addColorStop(0.45,'rgba(70,170,45,0.07)');
+  hz.addColorStop(1,'rgba(0,0,0,0)');
+  x.save(); x.globalCompositeOperation='lighter'; x.fillStyle=hz;
+  x.fillRect(0, hy-H*0.26, W, H*0.34); x.restore();
+
+  // --- ground ---
+  x.fillStyle = '#040705'; x.fillRect(0, hy, W, H-hy);
+  // haze across the seam so the horizon is not a hard edge
+  x.save(); x.globalCompositeOperation='lighter';
+  const hazeG = x.createLinearGradient(0, hy-70, 0, hy+70);
+  hazeG.addColorStop(0,'rgba(60,150,45,0)');
+  hazeG.addColorStop(0.5,'rgba(70,170,50,0.085)');
+  hazeG.addColorStop(1,'rgba(60,150,45,0)');
+  x.fillStyle = hazeG; x.fillRect(0, hy-46, W, 92); x.restore();
+
+  // --- buildings, far to near, both sides ---
+  const br = prng(31337);
+  const BLD = [];
+  for (let i=0;i<150;i++){
+    const side = br() < 0.5 ? -1 : 1;
+    BLD.push({ z0: i*17 + br()*12, side,
+               off: RD.roadHalf + 6 + br()*42,
+               w: 7 + br()*16, h: 11 + br()*54,
+               hue: br(), lit: br() });
+  }
+  const span = 150*17;
+  for (const b of BLD){
+    let z = b.z0 - (camZ % span);
+    if (z < -40) z += span;
+    if (z < 1.2 || z > 260) continue;
+    const f = fogAt(z);
+    const nearX = b.side*(b.off), farX = b.side*(b.off + b.w);
+    const a1 = roadProject(nearX, 0, z), a2 = roadProject(nearX, b.h, z);
+    const b1 = roadProject(farX, 0, z + b.w*0.8), b2 = roadProject(farX, b.h, z + b.w*0.8);
+    x.save(); x.globalAlpha = 0.96*f;
+    x.fillStyle = b.hue > 0.72 ? '#0b150c' : '#060c08';
+    x.beginPath(); x.moveTo(a1.x,a1.y); x.lineTo(a2.x,a2.y); x.lineTo(b2.x,b2.y); x.lineTo(b1.x,b1.y); x.closePath(); x.fill();
+    // lit windows
+    if (b.lit > 0.25 && z < 150){
+      const wr = prng(Math.floor(b.z0*97)+5);
+      const rows = Math.max(2, Math.floor(b.h/3.4)), cols = Math.max(1, Math.floor(b.w/3.2));
+      for (let r2=0;r2<rows;r2++) for (let c=0;c<cols;c++){
+        if (wr() > 0.72) continue;
+        const wyy = 2.2 + r2*3.2, wxx = nearX + b.side*(c*3.2+1.1)*0.0;
+        const p = roadProject(nearX, wyy, z + c*3.0);
+        const sz = Math.max(1, 1.6*p.sc*0.06);
+        x.globalAlpha = f*(0.55+wr()*0.45);
+        x.fillStyle = wr() > 0.72 ? C.lime : 'rgba(205,245,180,0.95)';
+        x.fillRect(p.x - sz/2, p.y - sz*1.5, sz, sz*1.7);
+      }
+    }
+    x.restore();
+  }
+
+  // --- road surface ---
+  const nearZ = 2.2, farZ = 240;
+  const rl1 = roadProject(-RD.roadHalf,0,nearZ), rr1 = roadProject(RD.roadHalf,0,nearZ);
+  const rl2 = roadProject(-RD.roadHalf,0,farZ),  rr2 = roadProject(RD.roadHalf,0,farZ);
+  const rg = x.createLinearGradient(0, hy, 0, H);
+  rg.addColorStop(0,'#0a1410'); rg.addColorStop(0.45,'#0a1109'); rg.addColorStop(1,'#111a12');
+  x.fillStyle = rg;
+  x.beginPath(); x.moveTo(rl2.x,rl2.y); x.lineTo(rr2.x,rr2.y); x.lineTo(rr1.x,rr1.y); x.lineTo(rl1.x,rl1.y); x.closePath(); x.fill();
+
+  // kerb lines
+  for (const sgn of [-1,1]){
+    const e1 = roadProject(sgn*RD.roadHalf,0,nearZ), e2 = roadProject(sgn*RD.roadHalf,0,farZ);
+    x.strokeStyle='rgba(150,200,140,0.22)'; x.lineWidth=2;
+    x.beginPath(); x.moveTo(e1.x,e1.y); x.lineTo(e2.x,e2.y); x.stroke();
+  }
+
+  // --- centre dashes ---
+  const dashEvery = 14, dashLen = 5.0;
+  const startZ = Math.floor(camZ/dashEvery)*dashEvery;
+  for (let k=0;k<44;k++){
+    const wz = startZ + k*dashEvery - camZ;
+    if (wz < nearZ || wz > 200) continue;
+    const f = fogAt(wz);
+    const p1 = roadProject(0,0.01,wz), p2 = roadProject(0,0.01,wz+dashLen);
+    const wN = Math.max(1.5, 0.34*p1.sc), wF = Math.max(0.8, 0.34*p2.sc);
+    x.save(); x.globalAlpha = 0.55*f; x.fillStyle = 'rgba(226,240,210,0.9)';
+    x.beginPath(); x.moveTo(p1.x-wN/2,p1.y); x.lineTo(p1.x+wN/2,p1.y);
+    x.lineTo(p2.x+wF/2,p2.y); x.lineTo(p2.x-wF/2,p2.y); x.closePath(); x.fill();
+    x.restore();
+  }
+
+  // --- streetlights, with wet reflections ---
+  const lightStart = Math.floor(camZ/RD.lightSpacing)*RD.lightSpacing;
+  for (let k=0;k<26;k++){
+    const wz = lightStart + k*RD.lightSpacing - camZ;
+    if (wz < 1.0 || wz > 250) continue;
+    const f = fogAt(wz);
+    for (const sgn of [-1,1]){
+      const baseX = sgn*(RD.roadHalf+1.3);
+      const foot = roadProject(baseX, 0, wz);
+      const head = roadProject(baseX, 8.2, wz);
+      const arm  = roadProject(baseX - sgn*2.3, 8.0, wz);
+      x.save(); x.globalAlpha = 0.80*f;
+      x.strokeStyle='#16251a'; x.lineWidth=Math.max(1, 0.19*foot.sc);
+      x.beginPath(); x.moveTo(foot.x,foot.y); x.lineTo(head.x,head.y); x.lineTo(arm.x,arm.y); x.stroke();
+      x.restore();
+      const r = Math.max(2, 1.5*arm.sc*0.55);
+      drawLamp(arm.x, arm.y, r*3.2, 0.55*f);
+      x.save(); x.globalCompositeOperation='lighter'; x.globalAlpha=0.9*f;
+      x.fillStyle='rgba(255,246,206,0.95)';
+      x.beginPath(); x.arc(arm.x, arm.y, Math.max(0.8, r*0.42), 0, Math.PI*2); x.fill();
+      x.restore();
+      // pooled light + reflection on the wet road
+      const pool = roadProject(baseX - sgn*2.3, 0, wz);
+      drawLamp(pool.x, pool.y, r*5.0, 0.20*f, 'rgba(255,240,180,0.55)');
+      wetSmear(pool.x, pool.y, Math.max(2, r*1.5), Math.max(6, r*7), 0.22*f, 'rgba(255,235,160,0.55)');
+    }
+  }
+
+  // --- the car ahead: tail lights, slight sway, spray ---
+  const carZ = mix(26, 13, eOutCubic(cl((u-0.08)/0.5)));
+  if (carZ > 2){
+    const sway = Math.sin(t*1.25)*0.42 + Math.sin(t*0.6)*0.3;
+    const cf = fogAt(carZ);
+    const bodyW = 2.05, bodyH = 1.45;
+    const bl = roadProject(sway-bodyW/2, 0.18, carZ);
+    const br2 = roadProject(sway+bodyW/2, 0.18, carZ);
+    const tl = roadProject(sway-bodyW/2, bodyH, carZ);
+    const tr = roadProject(sway+bodyW/2, bodyH, carZ);
+    const roofL = roadProject(sway-bodyW*0.38, bodyH+0.52, carZ+0.55);
+    const roofR = roadProject(sway+bodyW*0.38, bodyH+0.52, carZ+0.55);
+    x.save(); x.globalAlpha = cf;
+    // under-car shadow / spray
+    const sp = roadProject(sway, 0, carZ);
+    wetSmear(sp.x, sp.y-2, Math.abs(br2.x-bl.x)*1.2, Math.abs(br2.x-bl.x)*0.8, 0.18*cf, 'rgba(190,230,170,0.35)');
+    x.fillStyle='#070d08';
+    x.beginPath(); x.moveTo(bl.x,bl.y); x.lineTo(tl.x,tl.y); x.lineTo(roofL.x,roofL.y);
+    x.lineTo(roofR.x,roofR.y); x.lineTo(tr.x,tr.y); x.lineTo(br2.x,br2.y); x.closePath(); x.fill();
+    x.strokeStyle='rgba(120,190,110,0.30)'; x.lineWidth=Math.max(1,0.05*bl.sc); x.stroke();
+    // rear window
+    x.fillStyle='rgba(30,60,30,0.55)';
+    x.beginPath(); x.moveTo(tl.x+ (tr.x-tl.x)*0.12, tl.y); x.lineTo(tr.x-(tr.x-tl.x)*0.12, tr.y);
+    x.lineTo(roofR.x, roofR.y); x.lineTo(roofL.x, roofL.y); x.closePath(); x.fill();
+    // tail lights
+    const lampR = Math.max(1.4, 0.16*bl.sc);
+    for (const s2 of [-1,1]){
+      const lp = roadProject(sway + s2*bodyW*0.40, 0.92, carZ);
+      x.save(); x.globalCompositeOperation='lighter';
+      x.globalAlpha=0.95*cf; x.fillStyle='rgba(255,60,40,0.95)';
+      x.beginPath(); x.ellipse(lp.x, lp.y, lampR*1.5, lampR*0.72, 0, 0, Math.PI*2); x.fill();
+      x.restore();
+      drawLamp(lp.x, lp.y, lampR*7, 0.40*cf, 'rgba(255,70,45,0.85)');
+      const rf = roadProject(sway + s2*bodyW*0.40, 0, carZ);
+      wetSmear(rf.x, rf.y, lampR*2.4, lampR*12, 0.30*cf, 'rgba(255,60,40,0.55)');
+    }
+    x.restore();
+  }
+
+  // --- headlight wash from our own car ---
+  x.save(); x.globalCompositeOperation='lighter';
+  const hl = x.createLinearGradient(0, H, 0, hy+30);
+  hl.addColorStop(0,'rgba(220,255,200,0.16)'); hl.addColorStop(1,'rgba(220,255,200,0)');
+  x.globalAlpha = 0.9; x.fillStyle = hl;
+  x.beginPath(); x.moveTo(W*0.18,H); x.lineTo(W*0.82,H);
+  x.lineTo(W/2+90, hy+24); x.lineTo(W/2-90, hy+24); x.closePath(); x.fill();
+  x.restore();
+
+  // --- speed streaks from the vanishing point ---
+  const streak = cl((u-0.30)/0.45);
+  if (streak > 0.01){
+    const sr = prng(8842);
+    x.save(); x.globalCompositeOperation='lighter';
+    for (let i=0;i<90;i++){
+      const ang = sr()*Math.PI*2, r0 = 60 + sr()*700;
+      const len = (40 + sr()*260) * streak;
+      const px = W/2 + Math.cos(ang)*r0, py = hy + Math.sin(ang)*r0*0.55;
+      x.globalAlpha = 0.05 + 0.16*sr()*streak;
+      x.strokeStyle = sr() > 0.72 ? C.lime : 'rgba(220,255,200,0.75)';
+      x.lineWidth = 0.8 + sr()*1.8;
+      x.beginPath(); x.moveTo(px,py);
+      x.lineTo(px + Math.cos(ang)*len, py + Math.sin(ang)*len*0.55); x.stroke();
+    }
+    x.restore();
+  }
+
+  // --- title line ---
+  const line = '// LOS SANTOS :: MAINSTREET RP';
+  const shown = Math.floor(cl((u-0.12)/0.35)*line.length);
+  if (shown > 0){
+    x.save(); x.globalAlpha = band(u,0.12,1,0.05,0.16);
+    ctext(line.slice(0,shown)+((n%8)<4?'_':' '), 126, H-150, 26,
+      {mono:true,align:'left',track:4,sq:1,color:'rgba(140,255,90,0.95)'});
+    x.restore();
+  }
+  const ta = band(u,0.52,1,0.12,0.14);
+  if (ta > 0.002){
+    x.save(); x.globalAlpha = ta;
+    ctext('SOME CITIES YOU VISIT.', W-126, H-214, 40, {align:'right',sq:0.80,track:1,chromeFill:true});
+    ctext('THIS ONE YOU LIVE IN.',  W-126, H-160, 40, {align:'right',sq:0.80,track:1,chromeFill:true});
+    x.restore();
+  }
+
+  fogBank(t, hy-60, 180, 0.42, 30, 1212, 'rgba(70,170,45,0.10)');
+  vignette(0.72);
+  // headlights snap on
+  flash(band(u,0.0,0.10,0.012,0.09)*0.85, '#dfffcc');
+}
+
 /* 0:02 — the badge */
 function sBadge(t, u, n){
   bgBase();
@@ -1104,10 +1360,18 @@ function sEnd(t, u, n){
 /* ======================= TIMELINE ======================= */
 const G_WARM = 'contrast(107%) saturate(101%) brightness(100%)';
 const SCENES = [
-  { t0: 0.00, t1: 2.00, fn:sOpen,     ui:0.00, hh:1.2,
-    cam:(t,u)=>{ CAM.scale = mix(1.10,1.02,eInOut(u)); },
-    post:{bloom:0.20, hal:0.10, ab:1.5, ray:0.00, grade:'contrast(110%) saturate(90%) brightness(94%)', weave:0.9} },
-  { t0: 2.00, t1: 6.00, fn:sBadge,    ui:0.45, hh:0.9,
+  // 120 BPM, 2.0s bars — every cut lands on a bar line.
+  { t0: 0.00, t1: 6.00, fn:sDrive,    ui:0.30, hh:1.5,
+    cam:(t,u)=>{ CAM.scale = mix(1.02,1.09,eInOutExpo(cl((u-0.05)/0.75)));
+                 CAM.rot  += Math.sin(t*0.5)*0.0012; },
+    post:{bloom:0.30, hal:0.16, ab:2.2, ray:0.10, rayX:W/2, rayY:H*0.495,
+          grade:'contrast(112%) saturate(96%) brightness(97%)', weave:1.0},
+    fx:{ name:'Droplets', opts:(t,u,n)=>({
+      interactive:false, intensity:0.30, speed:1, scale:0.52,
+      dropWidth:0.9, dropLength:1.15, refraction:0.38, blur:0, vignette:0,
+      fallSpeed:1.1, wiggle:1.1, staticDrops:0.35,
+      tint:[0.40,0.95,0.24], tintStrength:0.03 }) } },
+  { t0: 6.00, t1:10.00, fn:sBadge,    ui:0.45, hh:0.9,
     cam:(t,u)=>{ CAM.scale = mix(1.07,1.00,eOutQuint(u)); CAM.y = mix(18,0,eOutQuint(u)); },
     post:{bloom:0.26, hal:0.13, ab:1.3, ray:0.13, rayX:W/2, rayY:H*0.45, grade:G_WARM, weave:0.7},
     fx:{ name:'Droplets', opts:(t,u,n)=>({
@@ -1115,7 +1379,7 @@ const SCENES = [
       dropWidth:0.9, dropLength:1.15, refraction:0.38, blur:0, vignette:0,
       fallSpeed:1.1, wiggle:1.1, staticDrops:0.35,
       tint:[0.40,0.95,0.24], tintStrength:0.03 }) } },
-  { t0: 6.00, t1:10.00, fn:sHook,     ui:1.00, hh:1.0,
+  { t0:10.00, t1:14.00, fn:sHook,     ui:1.00, hh:1.0,
     cam:(t,u)=>{ CAM.x = mix(26,-26,eInOut(u)); CAM.scale = mix(1.00,1.035,u); },
     post:{bloom:0.20, hal:0.09, ab:1.2, ray:0.06, rayX:W*0.80, rayY:H*0.18, grade:G_WARM, weave:0.7},
     fx:{ name:'Droplets', opts:(t,u,n)=>({
@@ -1123,19 +1387,19 @@ const SCENES = [
       dropWidth:0.9, dropLength:1.15, refraction:0.38, blur:0, vignette:0,
       fallSpeed:1.1, wiggle:1.1, staticDrops:0.35,
       tint:[0.40,0.95,0.24], tintStrength:0.03 }) } },
-  { t0:10.00, t1:14.00, fn:sIdentity, ui:1.00, hh:0.85,
+  { t0:14.00, t1:18.00, fn:sIdentity, ui:1.00, hh:0.85,
     cam:(t,u)=>{ CAM.scale = mix(1.00,1.03,eInOut(u)); CAM.x = mix(-12,12,u); },
     post:{bloom:0.19, hal:0.08, ab:1.1, ray:0.00, grade:G_WARM, weave:0.6} },
-  { t0:14.00, t1:18.00, fn:sCrew,     ui:1.00, hh:0.85,
+  { t0:18.00, t1:22.00, fn:sCrew,     ui:1.00, hh:0.85,
     cam:(t,u)=>{ CAM.scale = mix(1.00,1.03,eInOut(u)); CAM.x = mix(14,-14,u); },
     post:{bloom:0.19, hal:0.08, ab:1.1, ray:0.00, grade:G_WARM, weave:0.6} },
-  { t0:18.00, t1:22.00, fn:sEvents,   ui:1.00, hh:0.9,
+  { t0:22.00, t1:26.00, fn:sEvents,   ui:1.00, hh:0.9,
     cam:(t,u)=>{ CAM.scale = mix(1.00,1.035,eInOut(u)); },
     post:{bloom:0.20, hal:0.09, ab:1.2, ray:0.07, rayX:W*0.5, rayY:H*0.06, grade:G_WARM, weave:0.6} },
-  { t0:22.00, t1:26.00, fn:sCare,     ui:1.00, hh:0.9,
+  { t0:26.00, t1:30.00, fn:sCare,     ui:1.00, hh:0.9,
     cam:(t,u)=>{ CAM.scale = mix(1.00,1.03,eInOut(u)); CAM.y = mix(0,-10,u); },
     post:{bloom:0.23, hal:0.11, ab:1.2, ray:0.06, rayX:W*0.5, rayY:H*0.46, grade:G_WARM, weave:0.6} },
-  { t0:26.00, t1:30.00, fn:sMontage,  ui:0.35, hh:1.3,
+  { t0:30.00, t1:34.00, fn:sMontage,  ui:0.35, hh:1.3,
     cam:(t,u)=>{ CAM.scale = 1.02; },
     post:{bloom:0.26, hal:0.12, ab:2.0, ray:0.00, grade:'contrast(112%) saturate(104%)', weave:1.1},
     fx:{ name:'Glitch', opts:(t,u,n)=>{
@@ -1143,7 +1407,7 @@ const SCENES = [
       return { intensity: Math.max(0, 1 - q/0.22) * 1.25, interval:0, duration:1,
                slices:18, shift:26, rgbShift:5, blocks:0.32, noise:0.22 };
     } } },
-  { t0:30.00, t1:36.00, fn:sEnd,      ui:0.55, hh:0.75,
+  { t0:34.00, t1:40.00, fn:sEnd,      ui:0.55, hh:0.75,
     cam:(t,u)=>{ CAM.scale = mix(1.05,1.00,eOutQuint(cl(u/0.5))); },
     post:{bloom:0.28, hal:0.14, ab:1.3, ray:0.14, rayX:W/2, rayY:H*0.37, grade:G_WARM, weave:0.6},
     fx:{ name:'Droplets', opts:(t,u,n)=>({
