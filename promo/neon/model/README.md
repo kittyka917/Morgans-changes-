@@ -67,3 +67,23 @@ python render_sign.py -- model/morgies_neon_sign.blend model/render_hero.png her
 ```
 
 `render_sign.py` args: blend, output png, view (`hero` / `front` / `low`), scale of 1920×1080, Cycles samples. The build also writes `stats.txt` (width, height, triangles).
+
+## Animated loop
+
+`morgies_neon_loop.mp4` is a seamless 3-second loop (1920×1080, 30 fps) with a quiet
+electrical hum: the sign hums, the **E** flickers out and back, the apostrophe
+sputters and the blossom breathes. The last frame runs straight into the first.
+`morgies_neon_loop.gif` is the same loop, smaller, for Discord.
+
+How it's made: `render_sign.py ... passes` renders the sign once with a Cycles
+light group per letter. Light adds up linearly, so `loop.py` re-lights that single
+render for every frame (denoised per group with OIDN, tone-mapped with
+Blender's AgX + Punchy through OpenColorIO). One 1080p render instead of 90.
+
+```
+python render_sign.py -- model/morgies_neon_sign.blend /tmp/passes.exr hero 1 160 passes
+python loop.py /tmp/passes.exr /tmp/loop     # frames/ + hum.wav
+```
+
+Extra Python packages for the loop: `pip install pyoidn opencolorio OpenEXR "opencv-python-headless==4.10.0.84"`
+(that OpenCV keeps numpy below 2, which bpy needs).

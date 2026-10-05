@@ -3,6 +3,7 @@ import bpy, sys, math, os
 from mathutils import Vector
 args = sys.argv[sys.argv.index('--')+1:]
 BLEND, OUTPNG, VIEW, RES, SAMPLES = args[0], args[1], args[2], float(args[3]), int(args[4])
+PASSES = len(args) > 5 and args[5] == 'passes'   # loop mode: one EXR, one light group per letter
 bpy.ops.wm.open_mainfile(filepath=BLEND)
 scene = bpy.context.scene
 STAGE = bpy.data.collections.get('STAGE') or bpy.data.collections.new('STAGE')
@@ -78,7 +79,48 @@ try:
 except Exception as e:
     print("compositor skipped:", e)
 
-scene.render.filepath = OUTPNG
-scene.render.image_settings.file_format = 'PNG'
+if PASSES:
+    # Light is additive, so a render split into light groups can be re-lit per frame
+    # afterwards: frame = sum(weight_i(t) * group_i). loop.py does that. Each letter's
+    # tubes, the blossom, the halo light and the world get their own group.
+    sign = next(o for o in scene.objects if o.type == 'MESH' and o.name.startswith('morgies_neon_sign'))
+    bpy.ops.object.select_all(action='DESELECT'); sign.select_set(True); bpy.context.view_layer.objects.active = sign
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.separate(type='MATERIAL'); bpy.ops.object.mode_set(mode='OBJECT')
+    parts = {o.active_material.name: o for o in bpy.context.selected_objects}
+    pink = parts['neon_pink']
+    bpy.ops.object.select_all(action='DESELECT'); pink.select_set(True); bpy.context.view_layer.objects.active = pink
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.separate(type='LOOSE'); bpy.ops.object.mode_set(mode='OBJECT')
+    contours = []
+    for o in bpy.context.selected_objects:
+        xs = [(o.matrix_world @ v.co).x for v in o.data.vertices]
+        contours.append([min(xs), max(xs), [o]])
+    contours.sort(key=lambda c: c[0])
+    letters = []                                  # contours overlapping in x belong to one glyph (O, R ...)
+    for c in contours:
+        if letters and c[0] < letters[-1][1] - 0.002:
+            letters[-1][1] = max(letters[-1][1], c[1]); letters[-1][2] += c[2]
+        else: letters.append(c)
+    vl = bpy.context.view_layer
+    names = ['L%d' % i for i in range(len(letters))] + ['blossom', 'halo', 'amb']
+    for n in names: vl.lightgroups.add(name=n)
+    for i, (x0, x1, objs) in enumerate(letters):
+        for o in objs: o.lightgroup = 'L%d' % i
+        print('LETTER', i, round(x0, 4), round(x1, 4), len(objs))
+    parts['neon_pale'].lightgroup = 'blossom'
+    lo.lightgroup = 'halo'
+    w.lightgroup = 'amb'
+    vl.cycles.denoising_store_passes = True       # albedo + normal, to guide per-group denoising
+    scene.cycles.use_denoising = False
+    scene.compositing_node_group = None
+    scene.render.image_settings.media_type = 'MULTI_LAYER_IMAGE'
+    scene.render.image_settings.file_format = 'OPEN_EXR_MULTILAYER'
+    scene.render.image_settings.color_depth = '32'
+    scene.render.image_settings.exr_codec = 'ZIP'
+    scene.render.filepath = OUTPNG
+else:
+    scene.render.filepath = OUTPNG
+    scene.render.image_settings.file_format = 'PNG'
 bpy.ops.render.render(write_still=True)
 print("RENDERED", OUTPNG)
