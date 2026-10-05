@@ -197,7 +197,22 @@ for t0, d in [(0.6, 1.4), (24.0, 2.0), (28.6, 1.4)]:
     rs = riser(t0, d)
     add(L, t0, rs, 0.16); add(R, t0, rs, 0.16)
 
-# --- montage stabs on each word (10 words over 28..32 => 0.4s each) ---
+# --- reverse swell into every cut: the standard trailer lead-in ---
+def rev_swell(dur=0.9):
+    n = int(dur*SR); out=[0.0]*n; z=0.0; ph=0.0
+    for i in range(n):
+        p = i/n
+        w = rng.uniform(-1,1)
+        z += (w - z)*(0.03 + 0.30*p*p)
+        f = 180.0*math.pow(2.0, p*1.8)
+        ph += 2*math.pi*f/SR
+        out[i] = (z*0.75 + math.sin(ph)*0.18) * (p**2.6)
+    return out
+for c in CUTS:
+    sw = rev_swell(0.9)
+    add(L, c-0.9, sw, 0.13); add(R, c-0.9, sw, 0.13)
+
+# --- montage stabs on each word (10 words over 26..30 => 0.4s each) ---
 for i in range(10):
     t = 26.0 + i*0.4
     st = noise_hit(0.22, decay=26.0, lp=0.5)

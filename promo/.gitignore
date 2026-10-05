@@ -3,3 +3,10 @@ frames/
 out/
 score.wav
 *.log
+
+# Your source clips and the extracted frame cache stay local
+media/*
+!media/README.md
+!media/clips/
+media/clips/*
+!media/clips/.gitkeep

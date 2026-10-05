@@ -60,19 +60,37 @@ otherwise taint the canvas and block frame export.
 Rendering is deterministic: `renderFrame(n)` depends only on `n`, never on the
 wall clock or an unseeded random, so a re-render always matches.
 
-## Swapping in gameplay footage
+## Dropping in city footage
 
-The piece is motion graphics by design — it ships without needing capture. To
-cut real footage in, render the silent master and overlay clips against it:
+Eight scenes have a footage slot behind the graphics. Put clips in
+`media/clips/` and run `node build.js` — the newest clips from the last 35 days
+are assigned automatically, cover-fitted to 16:9, graded toward the badge green
+and given a slow push. Slots with no clip keep their designed graphics, so the
+film always builds. Full detail in [`media/README.md`](media/README.md).
 
-```bash
-ffmpeg -i mainstreet-rp-promo-silent.mp4 -i your-clip.mp4 -filter_complex \
-  "[1:v]scale=1920:1080,trim=0:4,setpts=PTS-STARTPTS+18/TB[c];[0:v][c]overlay=enable='between(t,18,22)'" \
-  -c:a copy out.mp4
-```
+**Clip audio is never used** — the ingest extracts picture frames only, so
+there is no path for it to reach the film.
 
-The §03 "what's on" block at 0:18 and the montage at 0:26 are the natural
-places for B-roll.
+## The look
+
+The post chain, in order, in `renderFrame`:
+
+| Stage | What it does |
+|---|---|
+| Virtual camera | Handheld float on every shot, plus per-scene dolly and truck moves |
+| Atmosphere | Volumetric fog banks, rain, drifting embers, foreground bokeh, light shafts |
+| Highlight bloom | True highlights only — isolated by raising the frame to the 4th power, not a contrast curve, which is what stops the badge blowing out |
+| Halation | Wider, warmer second bloom pass |
+| God rays | Radial smear of the bright pass away from a light point |
+| Chromatic aberration | Radial RGB split via channel isolation — zero at centre, strongest at the frame edge |
+| Whip smear | Directional blur on the montage cuts (canvas filters only do gaussian, so it's an accumulation pass) |
+| Grade | Per-scene contrast/saturation curve |
+| Light leaks | Fired just after each cut |
+| Grain + gate weave | Grain with extra response in the shadows, plus sub-pixel frame jitter |
+
+Intensities live in each scene's `post:{}` block in the `SCENES` table.
+**Restraint is what reads as professional** — the first pass at these values was
+roughly triple what's there now and it destroyed the logo.
 
 ## A note on the music
 
