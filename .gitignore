@@ -1,0 +1,3 @@
+# Python bytecode (showtime writes these when it runs)
+__pycache__/
+*.py[cod]
