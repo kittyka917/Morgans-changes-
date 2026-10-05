@@ -1,0 +1,5 @@
+# Build output — regenerate with build.js / score.py
+frames/
+out/
+score.wav
+*.log

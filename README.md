@@ -15,6 +15,7 @@ MAINSTREET-RP repository, on the `dev` branch.
 | [`MORGAN-SYSTEMS.md`](MORGAN-SYSTEMS.md) | The main handover doc: systems built, systems changed, commands and who can run them |
 | [`docs/commands.md`](docs/commands.md) | Command reference on its own, for quick lookup |
 | [`docs/SOURCING.md`](docs/SOURCING.md) | Where each fact in here came from, and what still needs filling in from the source repo |
+| [`promo/`](promo/README.md) | Source for the 36-second MainStreet RP promotional video, rendered from code |
 
 ## Status
 
