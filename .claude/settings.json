@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "showtime": {
+      "source": {
+        "source": "directory",
+        "path": "/home/user/Morgans-changes-/.claude/plugins/showtime"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "showtime@showtime": true
+  }
+}
