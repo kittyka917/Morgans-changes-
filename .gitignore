@@ -1,3 +1,5 @@
 # Python bytecode (showtime writes these when it runs)
 __pycache__/
 *.py[cod]
+# showtime job output (renders, scratch)
+showtime-out/
