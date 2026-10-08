@@ -35,3 +35,24 @@ python3 extend.py
 ```
 
 Result: -14.0 LUFS, -1.1 dBFS peak.
+
+## Song 2 (`song2.mp3`, the current showcase)
+
+A 32.8 s instrumental (no speech: checked with showtime's transcriber). Measured
+with librosa: a tick every 0.333 s from 0.050 s, in ~1 s cycles of three; an
+energetic intro to ~8 s, a quiet break 8–15 s, a build 15–26 s, **one loud burst
+at 26.39 s** (peaks 26.42 / 26.53 s) and a quiet tail.
+
+As delivered it measures -25 LUFS with a 29 LU range: the burst sits ~23 dB
+above the rest, so plain loudness normalisation stops at -24 LUFS. The master
+lifts the body and leaves the burst on top:
+
+```bash
+ffmpeg -i song2.mp3 -af "acompressor=threshold=-40dB:ratio=3:attack=15:release=300:knee=6:makeup=1,\
+volume=31dB,alimiter=limit=0.89:attack=1:release=80:level=false,afade=t=out:st=32.2:d=0.6,aresample=48000" \
+  -c:a pcm_s24le song2_master.wav
+```
+
+Result: -17.2 LUFS, -0.9 dBFS peak, no clipped samples; the quiet break comes
+up from -45.6 to -16.1 dBFS and the burst stays ~3 dB above the build. (+33 dB
+reaches -15.8 LUFS but leaves the burst only ~2 dB above the build.)

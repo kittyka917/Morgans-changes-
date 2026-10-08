@@ -54,30 +54,23 @@ ffmpeg -y -framerate 60 -i bframes/f%05d.png -i music/song_master.wav -c:v libx2
 
 ## The full showcase (`showcase.html`)
 
-Every gun from Morgie's Gun Showcase and Morgan's Builds in **one cut**: a
-single run of the song (`music/song_master.wav`, 34.95 s), one build, one drop,
-and one running count, 01–13, across both sources.
+Every gun from Morgie's Gun Showcase and Morgan's Builds in **one cut**, on
+`music/song2.mp3` (32.8 s; grid and master in `music/README.md`), with one
+running count, 01–13, across both sources. The cut follows the song's shape:
 
-| Time | Beats | Shot |
+| Time | Song | Shot |
 |---|---|---|
-| 0:00 | intro | Title card, strobes of the customs on the first four beats |
-| 0:03.1 | 4–12 | 01–04 **the Glock wall**: four panels land one per beat, all spinning live |
-| 0:06.5 | 12–16 | 05–06 Pabs FN \| Compact Rifle on a diagonal split, sliding in from opposite sides (pushes in) |
-| 0:08.2 | 16–22 | 07 Cash Wrap's hero spin (pushes in) |
-| 0:10.8 | 22–28 | The wipe into 08 Pink Slide on the matched pose |
-| 0:13.4 | 28–32 | The break: the pink builds flicker in on quickening beats |
-| 0:15.1 | 32–56 | **The drop:** 09 Ja$mine (petal ring + impact) → 10 Black Slide → iris into 11 BLOSSOM and its callouts |
-| 0:25.4 | 56–64 | 12–13 Ja$mine AR and Pyjama G3 share a frame, drifting past each other, two callouts each (pushes in) |
-| 0:28.8 | 64–68 | The fit: COCO shirt (pushes in) |
-| 0:30.5 | 68–72 | Line-up: all 13 guns and the fit |
-| 0:32.2 | 72– | End card, fades out with the song |
-
-Shots vary on purpose — panels, a split screen, single-gun heroes, a shared
-frame — and most join with a **push** (the new shot slides in and shoves the
-last one out, `PUSH` in the timeline); the hard cuts with a flash are kept for
-the drop and the finish swaps.
+| 0:00 | intro | Title card; strobes of the customs on ticks 3, 4, 6, 7 |
+| 0:03.0 | intro | 01–04 **the Glock wall**: four panels land one per tick, all spinning live |
+| 0:05.0 | intro | 05–06 Pabs FN \| Compact Rifle on a diagonal split (pushes in) |
+| 0:08.0 | quiet break | 07 Cash Wrap's hero spin (pushes in) |
+| 0:11.0 | quiet break | The wipe into 08 Pink Slide on the matched pose |
+| 0:15.0 | build | 09 Ja$mine (petal ring) → 10 Black Slide → iris into 11 BLOSSOM and its callouts |
+| 0:23.0 | build | 12–13 Ja$mine AR and Pyjama G3 share a frame (pushes in) |
+| 0:25.4 | build | The pink builds flicker in on quickening ticks |
+| **0:26.39** | **the burst** | **The line-up slams in** — all 13 guns and the fit, flash, petals, camera jolt |
+| 0:28.0 | tail | End card, fades out with the song |
 
 MORG is the same gun as finish 03, so it appears once, as Black Slide.
 `showcase.html` is assembled from the engine and scenes of `morgie.html` and
-`builds.html` plus its own timeline at the end of the file; `music/extend.py`
-(the 55.5 s two-drop edit) is kept for reference but no longer used.
+`builds.html` plus its own timeline at the end of the file.
