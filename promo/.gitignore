@@ -2,6 +2,7 @@
 frames/
 mframes/
 gframes/
+bframes/
 out/
 score.wav
 score_*.wav
