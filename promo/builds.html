@@ -1163,7 +1163,7 @@ function sCustom(id, idx, opener){
     petals(t, 1.1, 1, 5252 + idx*17);
     vignette(0.66);
     const ts = u*dur;                            // a short, fixed-length hit, whatever the scene length
-    flash(band(ts,0,0.16,0.01,0.12)*(opener ? 0.85 : 0.35), '#ffe3f1');
+    flash(band(ts,0,0.16,0.01,0.12)*(opener ? 0.85 : 0.15), '#ffe3f1');   // the drop hits hard; the rest are light
   };
 }
 
