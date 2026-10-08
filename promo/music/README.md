@@ -20,3 +20,18 @@ Result: -13.9 LUFS integrated, -1.0 dBFS peak.
 
 If you swap in a different song, re-measure its beat grid and update
 `BEAT0` / `BEAT` in `morgie.html` — every cut is placed from those two numbers.
+
+## Extended edit (showcase.html)
+
+`showcase.html` runs 55.5 s, longer than the song, so `extend.py` builds an
+extended edit from the song's own parts: start → bar 19 (33.954 s), then back
+to the break at bar 7 (13.386 s) → end, crossfaded over 12 ms on the bar line.
+The beat grid carries straight through (onset strength on the grid: 0.94 before
+the join, 0.95 after). Master it the same way, with the fade at 54.3 s:
+
+```bash
+python3 extend.py
+# pass 1 / pass 2 as above, with atrim=0:55.5,afade=t=out:st=54.3:d=1.2 -> song_extended_master.wav
+```
+
+Result: -14.0 LUFS, -1.1 dBFS peak.

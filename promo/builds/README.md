@@ -51,3 +51,24 @@ ffmpeg -y -framerate 60 -i bframes/f%05d.png -i music/song_master.wav -c:v libx2
   -pix_fmt yuv420p -r 60 -g 120 -pass 2 -c:a aac -b:a 256k -ar 48000 -ac 2 \
   -af apad -t 34.95 -movflags +faststart morgans-builds.mp4
 ```
+
+## The full showcase (`showcase.html`)
+
+Morgie's Gun Showcase and Morgan's Builds in one 55.5 s cut, on the extended
+song (`music/extend.py`): two drops on one beat grid.
+
+| Time | Shot |
+|---|---|
+| 0:00 | Title card, strobes of the customs |
+| 0:03.1 | **The city guns**, one per bar |
+| 0:13.4 | Break: the four finishes flicker in |
+| 0:15.1 | **Drop 1 — Morgie's Gun Showcase:** Cash Wrap → wipe → Pink Slide → scan wipe → Black Slide → petal iris → BLOSSOM spin and callouts |
+| 0:34.0 | Break again: the customs flicker in |
+| 0:35.7 | **Drop 2 — the customs:** Ja$mine, Ja$mine AR, Pyjama G3 |
+| 0:46.0 | The fit (COCO shirt) |
+| 0:47.7 | Line-up: all 13 guns |
+| 0:51.1 | End card |
+
+MORG appears once, as finish 03 (Black Slide): it's the same gun.
+`showcase.html` is assembled from the engine and scenes of `morgie.html` and
+`builds.html` plus its own two-drop timeline at the end of the file.
