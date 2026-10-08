@@ -61,12 +61,21 @@ and one running count, 01–13, across both sources.
 | Time | Beats | Shot |
 |---|---|---|
 | 0:00 | intro | Title card, strobes of the customs on the first four beats |
-| 0:03.1 | 4–22 | 01–06 the city guns, three beats each: Glock 19, Glock, Camo Glock, Black/Red Glock, Pabs FN, Compact Rifle |
-| 0:10.8 | 22–28 | 07 Cash Wrap's hero spin, then the wipe into 08 Pink Slide on the matched pose |
+| 0:03.1 | 4–12 | 01–04 **the Glock wall**: four panels land one per beat, all spinning live |
+| 0:06.5 | 12–16 | 05–06 Pabs FN \| Compact Rifle on a diagonal split, sliding in from opposite sides (pushes in) |
+| 0:08.2 | 16–22 | 07 Cash Wrap's hero spin (pushes in) |
+| 0:10.8 | 22–28 | The wipe into 08 Pink Slide on the matched pose |
 | 0:13.4 | 28–32 | The break: the pink builds flicker in on quickening beats |
-| 0:15.1 | 32– | **The drop:** 09 Ja$mine (petal ring + impact) → 10 Black Slide → iris into 11 BLOSSOM and its callouts → 12 Ja$mine AR → 13 Pyjama G3 |
-| 0:30.5 | 68–72 | Line-up: all 13 guns and the COCO shirt |
+| 0:15.1 | 32–56 | **The drop:** 09 Ja$mine (petal ring + impact) → 10 Black Slide → iris into 11 BLOSSOM and its callouts |
+| 0:25.4 | 56–64 | 12–13 Ja$mine AR and Pyjama G3 share a frame, drifting past each other, two callouts each (pushes in) |
+| 0:28.8 | 64–68 | The fit: COCO shirt (pushes in) |
+| 0:30.5 | 68–72 | Line-up: all 13 guns and the fit |
 | 0:32.2 | 72– | End card, fades out with the song |
+
+Shots vary on purpose — panels, a split screen, single-gun heroes, a shared
+frame — and most join with a **push** (the new shot slides in and shoves the
+last one out, `PUSH` in the timeline); the hard cuts with a flash are kept for
+the drop and the finish swaps.
 
 MORG is the same gun as finish 03, so it appears once, as Black Slide.
 `showcase.html` is assembled from the engine and scenes of `morgie.html` and

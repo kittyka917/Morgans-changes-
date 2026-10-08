@@ -846,7 +846,7 @@ function sHero1(t, u, n){
     x.restore();
   }
   vignette(0.66);
-  flash(band(u,0,0.05,0.004,0.045)*0.25, '#ffd6ea');   // a light hit mid-build; the drop gets the big one
+  flash(band(u,0,0.05,0.004,0.045)*0.25, '#ffd6ea');
 }
 
 /* 0:06.5 — the details: speed-ramp into a near-freeze, callouts on the beat */
@@ -1630,11 +1630,11 @@ function sOpen(t, u, n){
    Each card plays the viewer's own spin at real speed, timed so the gun turns
    through its side-on frame just after the title lands. It whips in from the
    right on the downbeat with a short motion trail. */
-function sCity(id, idx, beats, num){
+function sCity(id, idx){
   return function(t, u, n){
-    const it = IT[id], dur = BEAT*(beats || 4);
+    const it = IT[id], dur = BEAT*4;
     stageBG(t, 1);
-    ctext(String(num).padStart(2,'0'), W*0.80, H*0.72, 560, {sq:0.74, fill:false, stroke:'rgba(255,120,190,0.30)', strokeW:2.5});
+    ctext(String(idx+1).padStart(2,'0'), W*0.80, H*0.72, 560, {sq:0.74, fill:false, stroke:'rgba(255,120,190,0.30)', strokeW:2.5});
     petals(t, 0.7, 0, 5151 + idx*31);
     const kf = Math.min(it.b - 2, it.hold - 0.45*dur*60 + u*dur*60);
     const inP = eOutExpo(cl(u/0.16));
@@ -1645,7 +1645,7 @@ function sCity(id, idx, beats, num){
     drawItem(it, kf, r, 1);
     shineItem(kf, r, (u-0.30)/0.45, 0.16);         // light: a strong pass washes the dark guns grey
     const ta = band(u, 0.06, 1, 0.08, 0.06);
-    titleBlock('// ' + String(num).padStart(2,'0') + ' / 13 · CITY GUN',
+    titleBlock('// CITY GUN ' + String(idx+1).padStart(2,'0') + ' / ' + String(CITY.length).padStart(2,'0'),
                it.name, it.sub, it.code, ta, (u-0.06)*1.4, it.name.length > 10 ? 96 : 120);
     if (it.line){
       x.save(); x.globalAlpha = band(u, 0.30, 1, 0.12, 0.06)*0.9;
@@ -1753,7 +1753,7 @@ function sCustom(id, idx, opener, bars, num){
 function sFit(t, u, n){
   const it = IT.coco, dur = BEAT*4;
   stageBG(t, 1, W*0.62, H*0.48);
-  bigWord('THE FIT', t, 0.5, H*0.62, 440, 10);
+  bigWord('THE FIT', t, 0.5, H*0.62, 440, 10);   // the fit: one shot, men's + women's
   petals(t, 1, 0, 6161);
   const kf = it.hold - 0.5*dur*60 + u*dur*60;
   const inP = eOutExpo(cl(u/0.16));
@@ -1905,47 +1905,163 @@ function sLineupAll(t, u, n){
 }
 
 
+
+/* ---------- the four Glocks as one shot: a wall of panels, one per beat ---------- */
+function sGlockWall(ids, first){
+  return function(t, u, n){
+    const dur = BEAT*8, ts = u*dur;
+    stageBG(t, 0.9);
+    petals(t, 0.6, 0, 8181);
+    const N = ids.length, gap = 16, m = 72, pw = (W - 2*m - gap*(N-1))/N, ph = H*0.72, py = H*0.15;
+    ids.forEach((id, i) => {
+      const it = IT[id], tin = i*BEAT;                 // panel i lands on beat i
+      const a = eOutExpo(cl((ts - tin)/0.35));
+      if (a <= 0.001) return;
+      const px = m + i*(pw + gap), oy = (1 - a)*140;
+      x.save(); x.globalAlpha = cl(a*1.4);
+      x.beginPath(); x.roundRect(px, py + oy, pw, ph, 18); x.clip();
+      const g = x.createLinearGradient(0, py, 0, py + ph);
+      g.addColorStop(0, 'rgba(46,10,30,0.88)'); g.addColorStop(1, 'rgba(10,3,8,0.92)');
+      x.fillStyle = g; x.fillRect(px, py + oy, pw, ph);
+      const rg = x.createRadialGradient(px + pw/2, py + oy + ph*0.38, 10, px + pw/2, py + oy + ph*0.38, pw*0.85);
+      rg.addColorStop(0, 'rgba(255,79,163,0.30)'); rg.addColorStop(1, 'rgba(255,79,163,0)');
+      x.fillStyle = rg; x.fillRect(px, py + oy, pw, ph);
+      const s = Math.min(pw*0.88/480, ph*0.60/525);
+      drawItem(it, it.hold - 50 + ts*60, bvRect(s, px + pw/2, py + oy + ph*0.40), 1, 0.5);   // the viewer's own spin, live
+      x.restore();
+      x.save(); x.globalAlpha = a;
+      x.strokeStyle = 'rgba(255,150,205,0.45)'; x.lineWidth = 1.5;
+      x.beginPath(); x.roundRect(px, py + oy, pw, ph, 18); x.stroke();
+      ctext(String(first + i).padStart(2,'0') + ' / 13', px + 26, py + oy + 46, 18, {mono:true, align:'left', track:4, sq:1, color:C.lime});
+      ctext(it.name, px + 24, py + oy + ph - 96, 50, {align:'left', sq:0.78, track:1.5, chromeFill:true,
+        charIn:{u:(ts - tin)/0.6, stagger:0.04, dur:0.3, rise:30}});
+      ctext(it.sub, px + 26, py + oy + ph - 60, 16, {mono:true, align:'left', track:4, sq:1, color:'rgba(255,200,228,0.85)'});
+      codeTag(it.code, px + 24, py + oy + ph - 20, 1);
+      x.restore();
+    });
+    x.save(); x.globalAlpha = band(u, 0.04, 1, 0.08, 0.05);
+    ctext('// THE CITY GUNS', m, py - 28, 22, {mono:true, align:'left', track:6, sq:1, color:C.lime});
+    x.restore();
+    petals(t, 0.6, 1, 8282);
+    vignette(0.62);
+    const bt = ts % BEAT;                                // a light tick as each panel lands
+    flash(ts < N*BEAT ? band(bt, 0, 0.06, 0.005, 0.05)*0.10 : 0, '#ffe0f0');
+  };
+}
+
+/* ---------- two guns on a diagonal split, sliding in from opposite sides ---------- */
+function sDuo(a, b, first){
+  return function(t, u, n){
+    const dur = BEAT*4, ts = u*dur, A = IT[a], Bi = IT[b];
+    stageBG(t, 0.9);
+    const sl = eOutExpo(cl(ts/0.45));
+    const top = W*0.57, bot = W*0.43;                    // the slash runs (top,0) -> (bot,H)
+    x.save(); x.beginPath(); x.moveTo(0,0); x.lineTo(top,0); x.lineTo(bot,H); x.lineTo(0,H); x.closePath(); x.clip();
+    x.fillStyle = 'rgba(8,2,6,0.45)'; x.fillRect(0,0,W,H);
+    drawItem(A, A.hold - 45 + ts*60, bvRect(1.18, W*0.26 - (1-sl)*520, H*0.46), 1, 0.5);
+    x.restore();
+    x.save(); x.beginPath(); x.moveTo(top,0); x.lineTo(W,0); x.lineTo(W,H); x.lineTo(bot,H); x.closePath(); x.clip();
+    const rg = x.createRadialGradient(W*0.74, H*0.60, 20, W*0.74, H*0.60, 700);
+    rg.addColorStop(0, 'rgba(255,79,163,0.22)'); rg.addColorStop(1, 'rgba(255,79,163,0)');
+    x.fillStyle = rg; x.fillRect(0,0,W,H);
+    drawItem(Bi, Bi.hold - 45 + ts*60, bvRect(1.08, W*0.74 + (1-sl)*520, H*0.60), 1, 0.5);   // below its title
+    x.restore();
+    const sp = eOutExpo(cl(ts/0.30));                    // the slash draws itself
+    x.save(); x.globalCompositeOperation = 'lighter';
+    glow('#ff4fa3', 28, ()=>{ x.strokeStyle = '#ffe3f1'; x.lineWidth = 3; x.beginPath();
+      x.moveTo(top, 0); x.lineTo(mix(top, bot, sp), H*sp); x.stroke(); });
+    x.restore();
+    const la = band(u, 0.10, 1, 0.12, 0.06);
+    if (la > 0.002){
+      x.save(); x.globalAlpha = la;
+      ctext('// ' + String(first).padStart(2,'0') + ' / 13 · CITY GUN', 126, H-250, 20, {mono:true, align:'left', track:6, sq:1, color:C.lime});
+      ctext(A.name, 126, H-160, 92, {align:'left', sq:0.76, track:2, chromeFill:true, charIn:{u:(u-0.1)*1.6, stagger:0.02, dur:0.15, rise:40}});
+      ctext(A.line, 128, H-118, 18, {mono:true, align:'left', track:3.5, sq:1, color:'rgba(255,225,240,0.9)'});
+      codeTag(A.code, 128, H-70, 1);
+      ctext('// ' + String(first+1).padStart(2,'0') + ' / 13 · ' + Bi.sub, W-126, 170, 20, {mono:true, align:'right', track:6, sq:1, color:C.lime});
+      ctext(Bi.name, W-126, 260, 92, {align:'right', sq:0.76, track:2, chromeFill:true, charIn:{u:(u-0.16)*1.6, stagger:0.02, dur:0.15, rise:40}});
+      ctext(Bi.line, W-128, 302, 18, {mono:true, align:'right', track:3.5, sq:1, color:'rgba(255,225,240,0.9)'});
+      const cw = ctextW(Bi.code, 20, {mono:true, sq:1, track:1}) + 28;
+      codeTag(Bi.code, W-128-cw, 352, 1);
+      x.restore();
+    }
+    vignette(0.64);
+  };
+}
+
+/* ---------- the two rifles share a frame, drifting past each other ---------- */
+function sRifles(a, b, first){
+  return function(t, u, n){
+    const dur = BEAT*8, ts = u*dur, A = IT[a], Bi = IT[b];
+    stageBG(t, 1.05, W/2, H*0.5);
+    bigWord('CUSTOMS', t, 0.30, H*0.58, 400, 10);
+    petals(t, 1, 0, 9191);
+    const inA = eOutExpo(cl(ts/0.5)), inB = eOutExpo(cl((ts - BEAT)/0.5));
+    const rA = bvRect(1.62, W*0.41 + mix(30,-30,u) + (1-inA)*W*0.8, H*0.31);
+    const rB = bvRect(1.58, W*0.59 + mix(-30,30,u) - (1-inB)*W*0.8, H*0.70);
+    if (inA > 0.001) drawItem(A, A.hold - 10 + u*20, rA, 1, 0.5);
+    if (inB > 0.001) drawItem(Bi, Bi.hold - 10 + u*20, rB, 1, 0.5);
+    shineItem(A.hold + u*20 - 10, rA, (u-0.30)/0.30, 0.25);
+    shineItem(Bi.hold + u*20 - 10, rB, (u-0.45)/0.30, 0.25);
+    const la = band(u, 0.06, 1, 0.10, 0.05), lb = band(u, 0.06 + BEAT/dur, 1, 0.10, 0.05);
+    x.save(); x.globalAlpha = la;
+    ctext('// ' + String(first).padStart(2,'0') + ' / 13 · CUSTOM', W-126, 150, 20, {mono:true, align:'right', track:6, sq:1, color:C.lime});
+    ctext(A.name, W-126, 236, 88, {align:'right', sq:0.76, track:2, chromeFill:true, charIn:{u:(u-0.06)*2, stagger:0.02, dur:0.12, rise:40}});
+    ctext(A.sub, W-128, 274, 18, {mono:true, align:'right', track:4, sq:1, color:'rgba(255,200,228,0.85)'});
+    x.restore();
+    x.save(); x.globalAlpha = lb;
+    ctext('// ' + String(first+1).padStart(2,'0') + ' / 13 · CUSTOM', 126, H-250, 20, {mono:true, align:'left', track:6, sq:1, color:C.lime});
+    ctext(Bi.name, 126, H-164, 88, {align:'left', sq:0.76, track:2, chromeFill:true, charIn:{u:(u-0.06-BEAT/dur)*2, stagger:0.02, dur:0.12, rise:40}});
+    ctext(Bi.sub, 128, H-126, 18, {mono:true, align:'left', track:4, sq:1, color:'rgba(255,200,228,0.85)'});
+    x.restore();
+    // two callouts each, from the viewer's descriptions
+    const cA = CALLS[a], cB = CALLS[b];
+    callout(rA.x + cA[1][0]*rA.s, rA.y + cA[1][1]*rA.s, 470, 140, 1, cA[1][5], cA[1][6], cl((u-0.40)/0.10)*(1-cl((u-0.95)/0.05)), -1);
+    callout(rA.x + cA[3][0]*rA.s, rA.y + cA[3][1]*rA.s, 1450, 470, 2, cA[3][5], cA[3][6], cl((u-0.50)/0.10)*(1-cl((u-0.95)/0.05)), 1);
+    callout(rB.x + cB[0][0]*rB.s, rB.y + cB[0][1]*rB.s, 470, 560, 3, cB[0][5], cB[0][6], cl((u-0.60)/0.10)*(1-cl((u-0.95)/0.05)), -1);
+    callout(rB.x + cB[1][0]*rB.s, rB.y + cB[1][1]*rB.s, 1450, 960, 4, cB[1][5], cB[1][6], cl((u-0.70)/0.10)*(1-cl((u-0.95)/0.05)), 1);
+    petals(t, 1, 1, 9292);
+    vignette(0.66);
+  };
+}
+
 /* ======================= TIMELINE ======================= */
 const G_PINK = 'contrast(108%) saturate(106%) brightness(100%)';
 const P_STD  = {bloom:0.14, hal:0.10, ab:1.2, ray:0.06, rayX:W/2, rayY:H*0.45, grade:G_PINK, weave:0};
 const GLITCH_AT = (centre, width) => (t,u,n) => ({ intensity: Math.max(0, 1 - Math.abs(u-centre)/width)*1.5,
   interval:0, duration:1, slices:20, shift:34, rgbShift:7, blocks:0.4, noise:0.25 });
 const REVEAL_POST = {...P_STD, bloom:0.15, hal:0.11, ab:1.4, ray:0.10};
-const SEQ_CITY = ['glock19','glock','camo','blackred','pabs','compact'];   // 01-06
 const BREAK_FLICK = [CUSTOM_FLICK[0], FINISH_FLICK[2], FINISH_FLICK[3], CUSTOM_FLICK[1], CUSTOM_FLICK[2], FINISH_FLICK[1]];
+/* push: the shot slides in from the right and shoves the last one out, so shots run into each other */
+const PUSH = 0.24;
 const SCENES = [
-  // song grid: beat i at BEATAT(i), bar b at BAR(b) = beat 4b. One build (beats 4-28), the break (28-32), one drop (32-).
+  // song grid: beat i at BEATAT(i). One build (beats 4-28), the break (28-32), one drop (32-).
   { t0: 0.00,       t1: BAR(1),     fn:sOpen,  ui:0.5, hh:1.2, post:{...P_STD, ab:1.6, ray:0},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: STROBE_HIT*1.4, interval:0, duration:1, slices:16, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
-  // 01-06: the city guns, three beats each
-  ...SEQ_CITY.map((id, i) => ({ t0: BEATAT(4+3*i), t1: BEATAT(7+3*i), fn:sCity(id, i, 3, i+1), ui:1.0, hh:0.8,
-    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); kick(u*BEAT*3, 6); }, post:{...P_STD} })),
-  // 07: Cash Wrap's hero spin; 08: the wipe into Pink Slide on the matched pose
-  { t0: BEATAT(22), t1: BEATAT(25), fn:sHero1,  ui:1.0, hh:1.0, cam:(t,u)=>{ CAM.scale = mix(1.05,1.0,eOutQuint(u)); kick(u*BEAT*3, 8); },
-    post:{...P_STD, ray:0.08} },
-  { t0: BEATAT(25), t1: BAR(7),     fn:sReveal, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
-    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.09) } },
-  // the break: the pink builds flicker in on quickening beats
+  { t0: BEATAT(4),  t1: BEATAT(12), fn:sGlockWall(['glock19','glock','camo','blackred'], 1), ui:1.0, hh:0.7,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.05,eInOut(u)); }, post:{...P_STD, ray:0} },
+  { t0: BEATAT(12), t1: BEATAT(16), fn:sDuo('pabs','compact', 5), ui:1.0, hh:0.8, push:true,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, ray:0} },
+  { t0: BEATAT(16), t1: BEATAT(22), fn:sHero1,  ui:1.0, hh:1.0, push:true,
+    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, ray:0.08} },
+  { t0: BEATAT(22), t1: BAR(7),     fn:sReveal, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
+    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
   { t0: BAR(7),     t1: BAR(8),     fn:sBreak('BUILDS', '// 13 GUNS · 1 FIT', BREAK_FLICK), ui:0.6, hh:1.0,
     post:{...P_STD, bloom:0.16, ray:0.10},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: Math.max(0, (u-0.75)*4)*0.8, interval:0, duration:1, slices:18, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
-  // THE DROP — 09 Ja$mine opens it
+  // THE DROP
   { t0: BAR(8),     t1: BEATAT(40), fn:sCustom('jasmine', 0, true, 2, 9), ui:1.0, hh:0.9,
     cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); kick(u*BEAT*8, 22); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
-  // 10 Black Slide, 11 the iris into BLOSSOM and its callouts
   { t0: BEATAT(40), t1: BEATAT(46), fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); kick(u*BEAT*6, 12); },
     post:{...P_STD} },
   { t0: BEATAT(46), t1: BEATAT(50), fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); kick(Math.max(0, u-0.5)*BEAT*4 + (u < 0.5 ? 9 : 0), 16); },
     post:{...REVEAL_POST, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47}, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
   { t0: BEATAT(50), t1: BEATAT(56), fn:sHero4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
-  // 12 Ja$mine AR, 13 Pyjama G3
-  { t0: BEATAT(56), t1: BEATAT(62), fn:sCustom('jasAR', 1, false, 1.5, 12), ui:1.0, hh:0.9,
-    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); kick(u*BEAT*6, 12); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
-  { t0: BEATAT(62), t1: BAR(17),    fn:sCustom('pyjama', 2, false, 1.5, 13), ui:1.0, hh:0.9,
-    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); kick(u*BEAT*6, 12); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
-  // all of it, then the card
-  { t0: BAR(17),    t1: BAR(18),    fn:sLineupAll, ui:1.0, hh:0.7, cam:(t,u)=>{ kick(u*BEAT*4, 10); }, post:{...P_STD, ray:0} },
-  { t0: BAR(18),    t1: DURATION,   fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); kick(u*(DURATION-BAR(18)), 10); },
+  { t0: BEATAT(56), t1: BEATAT(64), fn:sRifles('jasAR','pyjama', 12), ui:1.0, hh:0.8, push:true,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, bloom:0.15, ray:0.08} },
+  { t0: BEATAT(64), t1: BEATAT(68), fn:sFit,      ui:1.0, hh:0.8, push:true, post:{...P_STD} },
+  { t0: BEATAT(68), t1: BEATAT(72), fn:sLineupAll, ui:1.0, hh:0.7, cam:(t,u)=>{ kick(u*BEAT*4, 10); }, post:{...P_STD, ray:0} },
+  { t0: BEATAT(72), t1: DURATION,   fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); kick(u*(DURATION-BAR(18)), 10); },
     post:{...P_STD, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47} }
 ];
 const CLEAN = { ab:0.4, weave:0, hh:0.5, grain:0.035, glitch:0.6 };
@@ -1978,7 +2094,21 @@ function drawScene(n){
   x.setTransform(1,0,0,1,0,0); x.globalAlpha=1; x.globalCompositeOperation='source-over'; x.filter='none';
   camReset(); if (sc.cam) sc.cam(t,u); camHandheld(t, (sc.hh == null ? 1 : sc.hh) * CLEAN.hh);
   x.save(); camApply();
-  sc.fn(t,u,n);
+  const k = SCENES.indexOf(sc), dt = t - sc.t0;
+  if (sc.push && k > 0 && dt < PUSH){
+    const prev = SCENES[k-1], p = eInOutExpo(dt / PUSH), off = p*W;
+    x.save(); x.beginPath(); x.rect(0, 0, W - off, H); x.clip(); x.translate(-off, 0);
+    prev.fn(prev.t1 - 1/FPS, 1, n); x.restore();
+    x.save(); x.beginPath(); x.rect(W - off, 0, off, H); x.clip(); x.translate(W - off, 0);
+    sc.fn(t, u, n); x.restore();
+    x.save(); x.globalCompositeOperation = 'lighter';            // the seam
+    const sg = x.createLinearGradient(W - off - 70, 0, W - off + 70, 0);
+    sg.addColorStop(0,'rgba(255,79,163,0)'); sg.addColorStop(0.5,'rgba(255,170,215,0.55)'); sg.addColorStop(1,'rgba(255,79,163,0)');
+    x.fillStyle = sg; x.fillRect(W - off - 70, 0, 140, H);
+    x.restore();
+  } else {
+    sc.fn(t,u,n);
+  }
   x.restore();
   return { t, u, sc };
 }
