@@ -54,21 +54,21 @@ ffmpeg -y -framerate 60 -i bframes/f%05d.png -i music/song_master.wav -c:v libx2
 
 ## The full showcase (`showcase.html`)
 
-Morgie's Gun Showcase and Morgan's Builds in one 55.5 s cut, on the extended
-song (`music/extend.py`): two drops on one beat grid.
+Every gun from Morgie's Gun Showcase and Morgan's Builds in **one cut**: a
+single run of the song (`music/song_master.wav`, 34.95 s), one build, one drop,
+and one running count, 01–13, across both sources.
 
-| Time | Shot |
-|---|---|
-| 0:00 | Title card, strobes of the customs |
-| 0:03.1 | **The city guns**, one per bar |
-| 0:13.4 | Break: the four finishes flicker in |
-| 0:15.1 | **Drop 1 — Morgie's Gun Showcase:** Cash Wrap → wipe → Pink Slide → scan wipe → Black Slide → petal iris → BLOSSOM spin and callouts |
-| 0:34.0 | Break again: the customs flicker in |
-| 0:35.7 | **Drop 2 — the customs:** Ja$mine, Ja$mine AR, Pyjama G3 |
-| 0:46.0 | The fit (COCO shirt) |
-| 0:47.7 | Line-up: all 13 guns |
-| 0:51.1 | End card |
+| Time | Beats | Shot |
+|---|---|---|
+| 0:00 | intro | Title card, strobes of the customs on the first four beats |
+| 0:03.1 | 4–22 | 01–06 the city guns, three beats each: Glock 19, Glock, Camo Glock, Black/Red Glock, Pabs FN, Compact Rifle |
+| 0:10.8 | 22–28 | 07 Cash Wrap's hero spin, then the wipe into 08 Pink Slide on the matched pose |
+| 0:13.4 | 28–32 | The break: the pink builds flicker in on quickening beats |
+| 0:15.1 | 32– | **The drop:** 09 Ja$mine (petal ring + impact) → 10 Black Slide → iris into 11 BLOSSOM and its callouts → 12 Ja$mine AR → 13 Pyjama G3 |
+| 0:30.5 | 68–72 | Line-up: all 13 guns and the COCO shirt |
+| 0:32.2 | 72– | End card, fades out with the song |
 
-MORG appears once, as finish 03 (Black Slide): it's the same gun.
+MORG is the same gun as finish 03, so it appears once, as Black Slide.
 `showcase.html` is assembled from the engine and scenes of `morgie.html` and
-`builds.html` plus its own two-drop timeline at the end of the file.
+`builds.html` plus its own timeline at the end of the file; `music/extend.py`
+(the 55.5 s two-drop edit) is kept for reference but no longer used.

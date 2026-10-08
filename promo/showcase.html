@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Morgan's Builds — Full Showcase</title>
+<html><head><meta charset="utf-8"><title>Morgan's Builds — Showcase</title>
 <style>html,body{margin:0;padding:0;background:#000;overflow:hidden}#stage{display:block;width:1920px;height:1080px}</style>
 </head><body>
 <canvas id="stage" width="1920" height="1080"></canvas>
@@ -59,7 +59,7 @@ window.__fxResolve();
 </script>
 <script>
 /* =======================================================================
-   MORGAN'S BUILDS — FULL SHOWCASE: Morgie's Gun Showcase + Morgan's Builds.  1920x1080 @60fps, 55.5s.
+   MORGAN'S BUILDS — ONE CUT: every gun from Morgie's Gun Showcase and Morgan's Builds.  1920x1080 @60fps, 34.95s.
    Deterministic: renderFrame(n) depends only on n. No wall clock, no
    unseeded random, so re-renders are byte-identical.
 
@@ -68,14 +68,14 @@ window.__fxResolve();
      post  -> god rays, bloom, halation, chromatic aberration, film grade,
               grain, gate weave, vignette, letterbox
      UI    -> drawn after post so it stays razor sharp
-   Cut to the extended song (music/song_extended_master.wav): every cut lands on its beat grid.
+   Cut to the song (music/song.mp3): every cut lands on its beat grid.
    ======================================================================= */
 
 const CONFIG = {
   letterbox: 0
 };
 
-const W = 1920, H = 1080, FPS = 60, DURATION = 55.50;
+const W = 1920, H = 1080, FPS = 60, DURATION = 34.95;
 /* The song's beat grid, measured with librosa (onset strength, tempo + phase
    fitted over the whole track and checked on the drop section alone):
    140.0 BPM, a beat every 0.4285s from 1.388s. Its first hit (3.09s) is bar 1,
@@ -839,7 +839,7 @@ function sHero1(t, u, n){
   const ta = band(u,0.30,1,0.10,0.06);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// FINISH 01', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 07 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('CASH WRAP', 126, H-170, 104, {align:'left',sq:0.76,track:1,chromeFill:true,
       charIn:{u:(u-0.30),stagger:0.012,dur:0.14,rise:50}});
     ctext('MORGIE’S GUN SHOWCASE', 130, H-128, 20, {mono:true,align:'left',track:6,sq:1,color:'rgba(255,200,228,0.8)'});
@@ -905,7 +905,7 @@ function sReveal(t, u, n){
     x.save(); x.globalAlpha = ta;
     const sc = mix(1.25, 1, eOutQuint((u-0.5)/0.18));
     x.translate(126, H-170); x.scale(sc, sc); x.translate(-126, -(H-170));
-    ctext('// FINISH 02', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 08 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('PINK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -939,7 +939,7 @@ function sHero2(t, u, n){
   const ta = 1 - cl((u-0.40)/0.08);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// FINISH 02', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 08 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('PINK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1098,7 +1098,7 @@ function sReveal3(t, u, n){
     x.save(); x.globalAlpha = ta;
     const s2 = mix(1.25, 1, eOutQuint((u-0.5)/0.18));
     x.translate(126, H-170); x.scale(s2, s2); x.translate(-126, -(H-170));
-    ctext('// FINISH 03', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 10 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('BLACK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1131,7 +1131,7 @@ function sHero3(t, u, n){
   const ta = 1 - cl((u-0.36)/0.08);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// FINISH 03', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 10 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('BLACK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1277,7 +1277,7 @@ function sReveal4(t, u, n){
     x.save(); x.globalAlpha = ta;
     const s2 = mix(1.25, 1, eOutQuint((u-0.5)/0.18));
     x.translate(126, H-170); x.scale(s2, s2); x.translate(-126, -(H-170));
-    ctext('// FINISH 04', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 11 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('BLOSSOM', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1298,7 +1298,7 @@ function sSpin4(t, u, n){
   const ta = 1 - cl((u-0.30)/0.10);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// FINISH 04', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 11 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('BLOSSOM', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1614,7 +1614,7 @@ function sOpen(t, u, n){
   glow(C.lime, 26, ()=>{ x.fillStyle=C.lime; x.fillRect(W/2-(W*0.6)*sweep, H/2-1, (W*1.2)*sweep, 2); });
   x.restore();
   petals(t, band(u,0.45,1,0.4,0.1)*0.8, 0, 7171);
-  const line = '// ' + BRAND + ' ' + BRAND_SUB + ' · 11 GUNS · 1 FIT';
+  const line = '// ' + BRAND + ' ' + BRAND_SUB + ' · 13 GUNS · 1 FIT';
   const shown = Math.floor(cl((u-0.08)/0.55)*line.length);
   if (shown > 0){
     x.save(); x.globalAlpha = band(u,0.08,1,0.04,0.12);
@@ -1630,11 +1630,11 @@ function sOpen(t, u, n){
    Each card plays the viewer's own spin at real speed, timed so the gun turns
    through its side-on frame just after the title lands. It whips in from the
    right on the downbeat with a short motion trail. */
-function sCity(id, idx){
+function sCity(id, idx, beats, num){
   return function(t, u, n){
-    const it = IT[id], dur = BEAT*4;
+    const it = IT[id], dur = BEAT*(beats || 4);
     stageBG(t, 1);
-    ctext(String(idx+1).padStart(2,'0'), W*0.80, H*0.72, 560, {sq:0.74, fill:false, stroke:'rgba(255,120,190,0.30)', strokeW:2.5});
+    ctext(String(num).padStart(2,'0'), W*0.80, H*0.72, 560, {sq:0.74, fill:false, stroke:'rgba(255,120,190,0.30)', strokeW:2.5});
     petals(t, 0.7, 0, 5151 + idx*31);
     const kf = Math.min(it.b - 2, it.hold - 0.45*dur*60 + u*dur*60);
     const inP = eOutExpo(cl(u/0.16));
@@ -1645,7 +1645,7 @@ function sCity(id, idx){
     drawItem(it, kf, r, 1);
     shineItem(kf, r, (u-0.30)/0.45, 0.16);         // light: a strong pass washes the dark guns grey
     const ta = band(u, 0.06, 1, 0.08, 0.06);
-    titleBlock('// CITY GUN ' + String(idx+1).padStart(2,'0') + ' / ' + String(CITY.length).padStart(2,'0'),
+    titleBlock('// ' + String(num).padStart(2,'0') + ' / 13 · CITY GUN',
                it.name, it.sub, it.code, ta, (u-0.06)*1.4, it.name.length > 10 ? 96 : 120);
     if (it.line){
       x.save(); x.globalAlpha = band(u, 0.30, 1, 0.12, 0.06)*0.9;
@@ -1708,9 +1708,9 @@ function petalBurst(cx, cy, p, seed){
 /* ---------- 0:15.1 (the drop) — the customs, two bars each ----------
    Spins in, speed-ramps into its side-on frame and holds there for the
    callouts. The first one opens with a ring of petals on the drop. */
-function sCustom(id, idx, opener){
+function sCustom(id, idx, opener, bars, num){
   return function(t, u, n){
-    const it = IT[id], dur = BEAT*8;
+    const it = IT[id], dur = BEAT*4*(bars || 2);
     stageBG(t, 1.1);
     bigWord(it.name, t, 0.55, H*0.62, it.name.length > 7 ? 360 : 460, idx % 2 ? 12 : -12);
     petals(t, 1.1, 0, 5151 + idx*17);
@@ -1739,7 +1739,7 @@ function sCustom(id, idx, opener){
       callout(r.x + sx*r.s, r.y + sy*r.s, lx, ly, idx*5 + i + 1, label, sub, cl((u - s0)/0.10) * (1 - cl((u-0.95)/0.05)), side);
     }
     const ta = band(u, 0.02, 0.36, 0.06, 0.06);
-    titleBlock('// CUSTOM ' + String(idx+1).padStart(2,'0') + ' / ' + String(CUSTOM.length).padStart(2,'0'),
+    titleBlock('// ' + String(num).padStart(2,'0') + ' / 13 · CUSTOM',
                it.name, it.sub, it.code, ta, (u-0.02)*1.6, it.name.length > 8 ? 104 : 120);
     codeTag(it.code, 128, H-84, band(u, 0.36, 1, 0.06, 0.05));
     petals(t, 1.1, 1, 5252 + idx*17);
@@ -1821,16 +1821,19 @@ function sEnd(t, u, n){
 }
 
 /* =======================================================================
-   THE COMBINED CUT — Morgie's Gun Showcase + Morgan's Builds.
-   Music: music/song_extended_master.wav, the song extended on its own bar
-   grid — song 0 -> bar 19 (33.954 s), then back to the break at bar 7
-   (13.386 s) for a second drop, to the end. So part 2 runs on the same grid
-   shifted by SHIFT = BAR(19) - BAR(7) = 20.568 s: P2(b) = BAR(b) + SHIFT.
+   ONE CUT — every gun from Morgie's Gun Showcase and Morgan's Builds in a
+   single run of the song (music/song_master.wav): one build, one drop, one
+   running count 01-13. The city guns ride the build three beats apiece, the
+   two pink turntable finishes close it, and the drop runs straight through
+   the pink builds — Ja$mine, Black Slide, BLOSSOM, Ja$mine AR, Pyjama G3 —
+   into the line-up and the end card.
    ======================================================================= */
-const SHIFT = BAR(19) - BAR(7);
-const P2 = b => BAR(b) + SHIFT;
-
-
+/* a hit: the camera jolts and settles over ~0.3 s */
+function kick(ts, amp){
+  const d = Math.exp(-ts*11);
+  CAM.x += Math.sin(ts*83)*amp*d; CAM.y += Math.cos(ts*67)*amp*0.7*d; CAM.rot += Math.sin(ts*51)*0.004*d*amp/16;
+}
+/* title for Cash Wrap, which plays from its own hero spin */
 /* the break before each drop: what's coming flickers in on quickening beats */
 function sBreak(word, line, drawers){
   return function(t, u, n){
@@ -1862,41 +1865,16 @@ const CUSTOM_FLICK = ['jasmine','jasAR','pyjama'].map(id => (ph, a) => {
   const it = IT[id]; drawItem(it, it.hold + ph*8, bvRect(it.sc*(0.82 + 0.06*ph), W/2, H*0.48), a, 0.6);
 });
 
-/* the first drop lands on finish 01: a ring of petals and the hit */
-function withDrop(fn, bars){
-  return function(t, u, n){
-    fn(t, u, n);
-    const ts = u * BEAT * 4 * bars;
-    petalBurst(W/2, H*0.47, cl(ts/1.6), 4404);
-    flash(band(ts, 0, 0.16, 0.01, 0.12)*0.85, '#ffe3f1');
-  };
-}
-
-/* chapter kicker over the first second of a chapter */
-function chapter(fn, label, bars){
-  return function(t, u, n){
-    fn(t, u, n);
-    const ts = u * BEAT * 4 * bars, a = band(ts, 0.10, 1.9, 0.18, 0.35);
-    if (a <= 0.002) return;
-    x.save(); x.globalAlpha = a;
-    const w = ctextW(label, 22, {mono:true, sq:1, track:6}) + 44;
-    x.fillStyle = 'rgba(255,79,163,0.92)';
-    x.beginPath(); x.roundRect(W/2 - w/2, 92, w, 44, 22); x.fill();
-    ctext(label, W/2, 122, 22, {mono:true, sq:1, track:6, color:'#1a0611'});
-    x.restore();
-  };
-}
-
-/* ---------- the line-up: all thirteen guns ---------- */
+/* ---------- the line-up: all thirteen guns and the fit ---------- */
 const BOX = { jasmine:[109,102,686,483], jasAR:[69,197,735,386], pyjama:[81,163,720,418], glock19:[175,28,620,553],
-  glock:[174,27,622,554], camo:[157,46,641,537], blackred:[156,46,641,535], pabs:[133,71,655,514], compact:[132,72,669,513] };
+  glock:[174,27,622,554], camo:[157,46,641,537], blackred:[156,46,641,535], pabs:[133,71,655,514], compact:[132,72,669,513], coco:[147,59,653,526] };
 const ALL = [
   // [name, draw(cx, cy, s, a)] — each scaled to fit a 230x230 tile from its measured box
   ['CASH WRAP',   (cx,cy,k,a) => { const s = 0.268*k; drawGun(V1_HOLD,  { s, w:1440*s, h:1080*s, x: cx - 685*s, y: cy - 530*s }, a); }],
   ['PINK SLIDE',  (cx,cy,k,a) => { const s = 0.268*k; drawGun(V2_MATCH, { s, w:1440*s, h:1080*s, x: cx - 685*s, y: cy - 530*s }, a); }],
   ['BLACK SLIDE', (cx,cy,k,a) => drawClip(V3_HOLD, clipRect(0.50*k, cx, cy, V3_GUN_C[0], V3_GUN_C[1]), a)],
   ['BLOSSOM',     (cx,cy,k,a) => drawBl(V4_HOLD, blRect(0.44*k, cx, cy, 360, 237), a)],
-  ...['jasmine','jasAR','pyjama','glock19','glock','camo','blackred','pabs','compact'].map(id => {
+  ...['jasmine','jasAR','pyjama','glock19','glock','camo','blackred','pabs','compact','coco'].map(id => {
     const it = IT[id], bw = BOX[id][2]-BOX[id][0], bh = BOX[id][3]-BOX[id][1];
     const s0 = Math.min(230/bw, 230/bh);
     return [it.name, (cx,cy,k,a) => drawItem(it, it.hold, bvRect(s0*k, cx, cy), a, 0.4)];
@@ -1906,7 +1884,7 @@ function sLineupAll(t, u, n){
   stageBG(t, 0.9, W/2, H*0.48);
   bigWord(BRAND + ' ' + BRAND_SUB, t, 0.30, H*0.58, 230, -10);
   petals(t, 1, 0, 5151);
-  const rows = [ALL.slice(0,7), ALL.slice(7)];
+  const rows = [ALL.slice(0,7), ALL.slice(7)];          // 7 + 7: the pink builds, then the city guns and the fit
   let i = 0;
   rows.forEach((row, ri) => {
     const cw = 252, x0 = W/2 - cw*(row.length-1)/2, cy = H*(ri ? 0.67 : 0.33);
@@ -1926,43 +1904,48 @@ function sLineupAll(t, u, n){
   flash(band(u*BEAT*8,0,0.10,0.008,0.08)*0.15, '#ffe0f0');
 }
 
+
 /* ======================= TIMELINE ======================= */
 const G_PINK = 'contrast(108%) saturate(106%) brightness(100%)';
 const P_STD  = {bloom:0.14, hal:0.10, ab:1.2, ray:0.06, rayX:W/2, rayY:H*0.45, grade:G_PINK, weave:0};
 const GLITCH_AT = (centre, width) => (t,u,n) => ({ intensity: Math.max(0, 1 - Math.abs(u-centre)/width)*1.5,
   interval:0, duration:1, slices:20, shift:34, rgbShift:7, blocks:0.4, noise:0.25 });
 const REVEAL_POST = {...P_STD, bloom:0.15, hal:0.11, ab:1.4, ray:0.10};
-const BREAK_FX = { name:'Glitch', opts:(t,u,n)=>({ intensity: Math.max(0, (u-0.75)*4)*0.8, interval:0, duration:1, slices:18, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) };
+const SEQ_CITY = ['glock19','glock','camo','blackred','pabs','compact'];   // 01-06
+const BREAK_FLICK = [CUSTOM_FLICK[0], FINISH_FLICK[2], FINISH_FLICK[3], CUSTOM_FLICK[1], CUSTOM_FLICK[2], FINISH_FLICK[1]];
 const SCENES = [
-  // ---- part 1: song bars 0-19 ----
-  { t0: 0.00,       t1: BAR(1),      fn:sOpen,  ui:0.5, hh:1.2, post:{...P_STD, ab:1.6, ray:0},
+  // song grid: beat i at BEATAT(i), bar b at BAR(b) = beat 4b. One build (beats 4-28), the break (28-32), one drop (32-).
+  { t0: 0.00,       t1: BAR(1),     fn:sOpen,  ui:0.5, hh:1.2, post:{...P_STD, ab:1.6, ray:0},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: STROBE_HIT*1.4, interval:0, duration:1, slices:16, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
-  ...CITY.map((id, i) => ({ t0: BAR(1+i), t1: BAR(2+i), fn: i === 0 ? chapter(sCity(id, i), 'THE CITY GUNS', 1) : sCity(id, i), ui:1.0, hh:0.8,
-    cam:(t,u)=>{ CAM.scale = mix(1.03,1.0,eOutQuint(u)); }, post:{...P_STD} })),
-  { t0: BAR(7),     t1: BAR(8),      fn:sBreak('MORGIE’S', '// MORGIE’S GUN SHOWCASE · FOUR FINISHES', FINISH_FLICK), ui:0.6, hh:1.0,
-    post:{...P_STD, bloom:0.16, ray:0.10}, fx:BREAK_FX },
-  { t0: BAR(8),     t1: BAR(10),     fn:chapter(withDrop(sHero1, 2), 'MORGIE’S GUN SHOWCASE', 2), ui:1.0, hh:1.0,
-    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, ray:0.08} },
-  { t0: BAR(10),    t1: BAR(11),     fn:sReveal,  ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
-    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.07) } },
-  { t0: BAR(11),    t1: BEATAT(50),  fn:sHero2,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0; CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
-  { t0: BEATAT(50), t1: BEATAT(54),  fn:sReveal3, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
-    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.07) } },
-  { t0: BEATAT(54), t1: BEATAT(62),  fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); }, post:{...P_STD} },
-  { t0: BEATAT(62), t1: BEATAT(66),  fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
+  // 01-06: the city guns, three beats each
+  ...SEQ_CITY.map((id, i) => ({ t0: BEATAT(4+3*i), t1: BEATAT(7+3*i), fn:sCity(id, i, 3, i+1), ui:1.0, hh:0.8,
+    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); kick(u*BEAT*3, 6); }, post:{...P_STD} })),
+  // 07: Cash Wrap's hero spin; 08: the wipe into Pink Slide on the matched pose
+  { t0: BEATAT(22), t1: BEATAT(25), fn:sHero1,  ui:1.0, hh:1.0, cam:(t,u)=>{ CAM.scale = mix(1.05,1.0,eOutQuint(u)); kick(u*BEAT*3, 8); },
+    post:{...P_STD, ray:0.08} },
+  { t0: BEATAT(25), t1: BAR(7),     fn:sReveal, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
+    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.09) } },
+  // the break: the pink builds flicker in on quickening beats
+  { t0: BAR(7),     t1: BAR(8),     fn:sBreak('BUILDS', '// 13 GUNS · 1 FIT', BREAK_FLICK), ui:0.6, hh:1.0,
+    post:{...P_STD, bloom:0.16, ray:0.10},
+    fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: Math.max(0, (u-0.75)*4)*0.8, interval:0, duration:1, slices:18, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
+  // THE DROP — 09 Ja$mine opens it
+  { t0: BAR(8),     t1: BEATAT(40), fn:sCustom('jasmine', 0, true, 2, 9), ui:1.0, hh:0.9,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); kick(u*BEAT*8, 22); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
+  // 10 Black Slide, 11 the iris into BLOSSOM and its callouts
+  { t0: BEATAT(40), t1: BEATAT(46), fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); kick(u*BEAT*6, 12); },
+    post:{...P_STD} },
+  { t0: BEATAT(46), t1: BEATAT(50), fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); kick(Math.max(0, u-0.5)*BEAT*4 + (u < 0.5 ? 9 : 0), 16); },
     post:{...REVEAL_POST, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47}, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
-  { t0: BEATAT(66), t1: BEATAT(70),  fn:sSpin4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.03,1.0,eOutQuint(u)); }, post:{...P_STD, bloom:0.15, ray:0.10, rayY:H*0.47} },
-  { t0: BEATAT(70), t1: BAR(19),     fn:sHero4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
-  // ---- part 2: the song again from its break (bar 7), shifted by SHIFT ----
-  { t0: P2(7),      t1: P2(8),       fn:sBreak('CUSTOMS', '// THE CUSTOMS', CUSTOM_FLICK), ui:0.6, hh:1.0,
-    post:{...P_STD, bloom:0.16, ray:0.10}, fx:BREAK_FX },
-  ...['jasmine','jasAR','pyjama'].map((id, i) => ({ t0: P2(8+2*i), t1: P2(10+2*i),
-    fn: i === 0 ? chapter(sCustom(id, i, true), 'THE CUSTOMS', 2) : sCustom(id, i, false), ui:1.0, hh:0.9,
-    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(i%2?-10:10, i%2?10:-10, eInOut(u)); },
-    post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} })),
-  { t0: P2(14),     t1: P2(15),      fn:chapter(sFit, 'THE FIT', 1), ui:1.0, hh:0.8, post:{...P_STD} },
-  { t0: P2(15),     t1: P2(17),      fn:sLineupAll, ui:1.0, hh:0.7, post:{...P_STD, ray:0} },
-  { t0: P2(17),     t1: DURATION,    fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); },
+  { t0: BEATAT(50), t1: BEATAT(56), fn:sHero4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
+  // 12 Ja$mine AR, 13 Pyjama G3
+  { t0: BEATAT(56), t1: BEATAT(62), fn:sCustom('jasAR', 1, false, 1.5, 12), ui:1.0, hh:0.9,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); kick(u*BEAT*6, 12); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
+  { t0: BEATAT(62), t1: BAR(17),    fn:sCustom('pyjama', 2, false, 1.5, 13), ui:1.0, hh:0.9,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); kick(u*BEAT*6, 12); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
+  // all of it, then the card
+  { t0: BAR(17),    t1: BAR(18),    fn:sLineupAll, ui:1.0, hh:0.7, cam:(t,u)=>{ kick(u*BEAT*4, 10); }, post:{...P_STD, ray:0} },
+  { t0: BAR(18),    t1: DURATION,   fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); kick(u*(DURATION-BAR(18)), 10); },
     post:{...P_STD, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47} }
 ];
 const CLEAN = { ab:0.4, weave:0, hh:0.5, grain:0.035, glitch:0.6 };
