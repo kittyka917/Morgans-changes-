@@ -44,15 +44,24 @@ energetic intro to ~8 s, a quiet break 8–15 s, a build 15–26 s, **one loud b
 at 26.39 s** (peaks 26.42 / 26.53 s) and a quiet tail.
 
 As delivered it measures -25 LUFS with a 29 LU range: the burst sits ~23 dB
-above the rest, so plain loudness normalisation stops at -24 LUFS. The master
-lifts the body and leaves the burst on top:
+above the rest, so plain loudness normalisation stops at -24 LUFS. A
+compressor lifts the body but flattens the burst, so `master_song2.py` automates
+the gain instead: +24 dB on the body, dipping to +8 dB across the burst (the dip
+starts in the near-silent gap just before it, then ramps back over the decay).
+The opening hit gets 8 dB less, with a 20 ms fade-in: at full gain the limiter
+squared it off and the AAC encode overshot it to +4.1 dBTP. A limiter at
+-2 dBFS (0.79) catches the peaks and leaves headroom for the AAC encode.
 
 ```bash
-ffmpeg -i song2.mp3 -af "acompressor=threshold=-40dB:ratio=3:attack=15:release=300:knee=6:makeup=1,\
-volume=31dB,alimiter=limit=0.89:attack=1:release=80:level=false,afade=t=out:st=32.2:d=0.6,aresample=48000" \
-  -c:a pcm_s24le song2_master.wav
+python3 master_song2.py 24 8      # BODY BURST in dB -> song2_master.wav
 ```
 
-Result: -17.2 LUFS, -0.9 dBFS peak, no clipped samples; the quiet break comes
-up from -45.6 to -16.1 dBFS and the burst stays ~3 dB above the build. (+33 dB
-reaches -15.8 LUFS but leaves the burst only ~2 dB above the build.)
+Result: -19.0 LUFS, -1.8 dBTP after the AAC encode, no clipping, burst +3.2 dB
+over the build. It is quieter than -14 on purpose. Louder settings trade the
+burst away:
+
+| BODY / BURST | Loudness | Burst over build |
+|---|---|---|
+| +22 / +7 | -20.3 LUFS | +5.7 dB |
+| +24 / +8 | -19.0 LUFS | +3.2 dB |
+| +26 / +9 | -17.8 LUFS | +2.3 dB |
