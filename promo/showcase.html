@@ -1591,8 +1591,9 @@ let STROBE_HIT = 0;
 const OPEN_END = 4.966;                 // the intro's second phrase comes in
 function sOpen(t, u, n){
   x.fillStyle = '#050208'; x.fillRect(0,0,W,H);
-  // frame 0 is the thumbnail: open on the title over a dim Ja$mine, gone by the first strobe
-  const pre = 1 - eInCubic(cl(t / STROBES[0][0]));
+  // frame 0 is the thumbnail: open on the title over a dim Ja$mine, gone by the first strobe,
+  // back again through the song's near-silence after the strobes (3.1-4.9 s)
+  const pre = Math.max(1 - eInCubic(cl(t / STROBES[0][0])), 0.9*eInOut(cl((t - 3.25)/0.9)));
   if (pre > 0.002){
     stageBG(t, 0.5*pre);
     drawItem(IT.jasmine, IT.jasmine.hold + t*12, bvRect(1.25, W/2, H*0.47), 0.42*pre, 0.35);
