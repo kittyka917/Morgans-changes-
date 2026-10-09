@@ -59,7 +59,7 @@ window.__fxResolve();
 </script>
 <script>
 /* =======================================================================
-   MORGAN'S BUILDS — ONE CUT: every gun from Morgie's Gun Showcase and Morgan's Builds.  1920x1080 @60fps, 32.8s.
+   MORGAN'S BUILDS — ONE CUT: every gun from Morgie's Gun Showcase and Morgan's Builds.  1920x1080 @60fps, 43.95s.
    Deterministic: renderFrame(n) depends only on n. No wall clock, no
    unseeded random, so re-renders are byte-identical.
 
@@ -75,12 +75,12 @@ const CONFIG = {
   letterbox: 0
 };
 
-const W = 1920, H = 1080, FPS = 60, DURATION = 32.80;
+const W = 1920, H = 1080, FPS = 60, DURATION = 43.95;
 /* The song's beat grid, measured with librosa (onset strength, tempo + phase
    fitted over the whole track and checked on the drop section alone):
    140.0 BPM, a beat every 0.4285s from 1.388s. Its first hit (3.09s) is bar 1,
    the drop (15.10s) bar 8. The song ends at 34.97s; the video at 34.95s. */
-const BEAT0 = 0.050, BEAT = 0.3330;   // song2: a tick every 0.333 s from 0.050 s (librosa, fitted on the whole track)
+const BEAT0 = 0.146, BEAT = 0.3822;   // song3: 157 BPM eighths (a 0.1911 s sixteenth from 0.146 s, fitted with librosa after 11 s)
 const BEATAT = i => BEAT0 + BEAT*i, BAR = b => BEATAT(4*b);
 const TOTAL = Math.round(DURATION * FPS);
 
@@ -839,7 +839,7 @@ function sHero1(t, u, n){
   const ta = band(u,0.30,1,0.10,0.06);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// 07 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 08 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('CASH WRAP', 126, H-170, 104, {align:'left',sq:0.76,track:1,chromeFill:true,
       charIn:{u:(u-0.30),stagger:0.012,dur:0.14,rise:50}});
     ctext('MORGIE’S GUN SHOWCASE', 130, H-128, 20, {mono:true,align:'left',track:6,sq:1,color:'rgba(255,200,228,0.8)'});
@@ -905,7 +905,7 @@ function sReveal(t, u, n){
     x.save(); x.globalAlpha = ta;
     const sc = mix(1.25, 1, eOutQuint((u-0.5)/0.18));
     x.translate(126, H-170); x.scale(sc, sc); x.translate(-126, -(H-170));
-    ctext('// 08 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 09 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('PINK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -939,7 +939,7 @@ function sHero2(t, u, n){
   const ta = 1 - cl((u-0.40)/0.08);
   if (ta > 0.002){
     x.save(); x.globalAlpha = ta;
-    ctext('// 08 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
+    ctext('// 09 / 13 · FINISH', 126, H-292, 22, {mono:true,align:'left',track:6,sq:1,color:C.lime});
     ctext('PINK SLIDE', 126, H-170, 112, {align:'left',sq:0.76,track:2,chromeFill:true});
     x.restore();
   }
@@ -1582,16 +1582,17 @@ function titleBlock(kicker, name, sub, code, a, u, size){
 
 /* ---------- 0:00 — cold open: strobed macro glimpses of the four customs on the first four beats ---------- */
 const STROBES = [ // [start, dur, item, cropX, cropY, zoom]
-  [BEATAT(3), 0.16, 'jasmine', 410, 142, 3.2],
-  [BEATAT(4), 0.16, 'jasAR',   367, 230, 3.0],
-  [BEATAT(6), 0.16, 'morg',    250,  70, 3.0],
-  [BEATAT(7), 0.20, 'pyjama',  392, 262, 3.0]
+  [1.366, 0.16, 'jasmine', 410, 142, 3.2],     // song3's intro: the "yeah" and the hits after it (measured onsets)
+  [1.756, 0.16, 'jasAR',   367, 230, 3.0],
+  [2.678, 0.16, 'morg',    250,  70, 3.0],
+  [3.046, 0.20, 'pyjama',  392, 262, 3.0]
 ];
 let STROBE_HIT = 0;
+const OPEN_END = 4.966;                 // the intro's second phrase comes in
 function sOpen(t, u, n){
   x.fillStyle = '#050208'; x.fillRect(0,0,W,H);
   // frame 0 is the thumbnail: open on the title over a dim Ja$mine, gone by the first strobe
-  const pre = 1 - eInCubic(cl(t / BEATAT(3)));
+  const pre = 1 - eInCubic(cl(t / STROBES[0][0]));
   if (pre > 0.002){
     stageBG(t, 0.5*pre);
     drawItem(IT.jasmine, IT.jasmine.hold + t*12, bvRect(1.25, W/2, H*0.47), 0.42*pre, 0.35);
@@ -1623,7 +1624,7 @@ function sOpen(t, u, n){
   }
   vignette(0.7);
   flash(STROBE_HIT*0.35, '#ffd0e8');
-  flash(band(t, BEATAT(9)-0.12, BEATAT(9)+0.05, 0.03, 0.06)*0.8, '#ffe3f1');   // into the first city gun
+  flash(band(t, OPEN_END-0.12, OPEN_END+0.05, 0.03, 0.06)*0.8, '#ffe3f1');   // into the first city gun
 }
 
 /* ---------- 0:03 — the city guns, one per bar ----------
@@ -1822,11 +1823,10 @@ function sEnd(t, u, n){
 
 /* =======================================================================
    ONE CUT — every gun from Morgie's Gun Showcase and Morgan's Builds in a
-   single run of the song (music/song_master.wav): one build, one drop, one
-   running count 01-13. The city guns ride the build three beats apiece, the
-   two pink turntable finishes close it, and the drop runs straight through
-   the pink builds — Ja$mine, Black Slide, BLOSSOM, Ja$mine AR, Pyjama G3 —
-   into the line-up and the end card.
+   single run of the song (music/song3.m4a): one running count 01-13. The
+   city guns ride the sparse intro, the vocal pickup flickers what's coming,
+   and each 808 drop lands a moment: Ja$mine, the Pink Slide swap, the
+   BLOSSOM iris, the rifles on the verse, the line-up on the last drop.
    ======================================================================= */
 /* a hit: the camera jolts and settles over ~0.3 s */
 function kick(ts, amp){
@@ -1835,14 +1835,20 @@ function kick(ts, amp){
 }
 /* title for Cash Wrap, which plays from its own hero spin */
 /* the break before each drop: what's coming flickers in on quickening beats */
-function sBreak(word, line, drawers){
+function sBreak(word, line, drawers, hits){       // hits: absolute time of each flicker, then the scene's end
   return function(t, u, n){
     x.fillStyle = '#050208'; x.fillRect(0,0,W,H);
     stageBG(t, 0.35 + 0.65*u);
     bigWord(word, t, 0.25 + 0.4*u, H*0.62, 380, -14);
-    const beatsIn = u * 4;
-    const step = beatsIn < 2 ? 1 : beatsIn < 3 ? 0.5 : 0.25;
-    const ph = (beatsIn % step) / step, hitN = Math.floor(beatsIn / step);
+    let ph, hitN;
+    if (hits){
+      hitN = 0; while (hitN < hits.length - 2 && t >= hits[hitN+1]) hitN++;
+      ph = cl((t - hits[hitN]) / (hits[hitN+1] - hits[hitN]));
+    } else {
+      const beatsIn = u * 4;
+      const step = beatsIn < 2 ? 1 : beatsIn < 3 ? 0.5 : 0.25;
+      ph = (beatsIn % step) / step; hitN = Math.floor(beatsIn / step);
+    }
     const hitA = Math.max(0, 1 - ph*1.6);
     if (hitA > 0) drawers[hitN % drawers.length](ph, hitA);
     const shown = Math.floor(cl(u/0.4)*line.length);
@@ -1907,14 +1913,14 @@ function sLineupAll(t, u, n){
 
 
 /* ---------- the four Glocks as one shot: a wall of panels, one per beat ---------- */
-function sGlockWall(ids, first, secs){
+function sGlockWall(ids, first, secs, lands){      // lands: each panel's landing time into the scene
   return function(t, u, n){
     const dur = secs, ts = u*dur;
     stageBG(t, 0.9);
     petals(t, 0.6, 0, 8181);
     const N = ids.length, gap = 16, m = 72, pw = (W - 2*m - gap*(N-1))/N, ph = H*0.72, py = H*0.15;
     ids.forEach((id, i) => {
-      const it = IT[id], tin = i*BEAT;                 // panel i lands on beat i
+      const it = IT[id], tin = lands ? lands[i] : i*BEAT;   // panel i lands on its hit
       const a = eOutExpo(cl((ts - tin)/0.35));
       if (a <= 0.001) return;
       const px = m + i*(pw + gap), oy = (1 - a)*140;
@@ -1944,8 +1950,9 @@ function sGlockWall(ids, first, secs){
     x.restore();
     petals(t, 0.6, 1, 8282);
     vignette(0.62);
-    const bt = ts % BEAT;                                // a light tick as each panel lands
-    flash(ts < N*BEAT ? band(bt, 0, 0.06, 0.005, 0.05)*0.10 : 0, '#ffe0f0');
+    let bt = 1e9;                                        // a light tick as each panel lands
+    for (let i = 0; i < N; i++){ const ti = lands ? lands[i] : i*BEAT; if (ts >= ti) bt = ts - ti; }
+    flash(band(bt, 0, 0.06, 0.005, 0.05)*0.10, '#ffe0f0');
   };
 }
 
@@ -2036,6 +2043,14 @@ function slam(fn, secs){
   };
 }
 
+/* a drop that isn't the last one: a shorter, lighter flash and a jolt */
+function hit(fn, secs, amp){
+  return function(t, u, n){
+    fn(t, u, n);
+    flash(band(u*secs, 0, 0.10, 0.005, 0.08)*amp, '#ffe3f1');
+  };
+}
+
 /* ======================= TIMELINE ======================= */
 const G_PINK = 'contrast(108%) saturate(106%) brightness(100%)';
 const P_STD  = {bloom:0.14, hal:0.10, ab:1.2, ray:0.06, rayX:W/2, rayY:H*0.45, grade:G_PINK, weave:0};
@@ -2044,42 +2059,61 @@ const GLITCH_AT = (centre, width) => (t,u,n) => ({ intensity: Math.max(0, 1 - Ma
 const REVEAL_POST = {...P_STD, bloom:0.15, hal:0.11, ab:1.4, ray:0.10};
 const BREAK_FLICK = [CUSTOM_FLICK[0], FINISH_FLICK[2], FINISH_FLICK[3], CUSTOM_FLICK[1], CUSTOM_FLICK[2], FINISH_FLICK[1]];
 const PUSH = 0.24;
-/* The song (music/song2.mp3): a tick every 0.333 s from 0.050 s, in cycles of three (CYC, ~1 s) —
-   measured with librosa. Energetic intro to ~8 s, a quiet break 8-15 s, a build 15-26 s, ONE loud
-   burst at 26.39 s (measured onset; peaks 26.42 / 26.53), a quiet tail to 32.8 s. */
-const HIT = 26.390;
-const CYC = k => BEAT0 + 3*BEAT*k, TK = i => BEAT0 + BEAT*i;
+/* The song (music/song3.m4a, the main track of the Medal clip): 157 BPM, bars of 3.0576 s from 0.719 s
+   (BR), measured with librosa. A sparse intro (a "yeah" at 1.37 s, near-silence 3.1-4.9 s, a second
+   phrase from 4.97 s), the vocal pickup "stay with Vegas on the way" from 9.59 s, then 808 drops
+   (measured attacks) at 11.227, 16.009, 22.117, 28.239 (the verse) and 34.222 s, each a bar long with
+   a quieter bar between, and an outro under the verse from 35.85 s. */
+const BR = b => 0.7193 + 3.0576*b;
+const DROP = [11.227, 16.009, 22.117, 28.239, 34.222];
 const LEN = (a, b) => b - a;
+const CITY_FLICK = ['glock19','pabs','camo','compact'].map(id => (ph, a) => {
+  const it = IT[id]; drawItem(it, it.hold + ph*8, bvRect(it.sc*(0.82 + 0.06*ph), W/2, H*0.48), a, 0.5);
+});
+const LAST_FLICK = [CITY_FLICK[0], FINISH_FLICK[0], CUSTOM_FLICK[1], CITY_FLICK[1], FINISH_FLICK[3], CITY_FLICK[3], CUSTOM_FLICK[2]];
+const T_WALL = OPEN_END, T_DUO = 7.368, T_RISE = 9.586;
+const T_REV4 = DROP[2] - 0.757;                       // the BLOSSOM iris is fully open (u = 0.5) on the drop
 const SCENES = [
-  { t0: 0.00,    t1: CYC(3),  fn:sOpen,  ui:0.5, hh:1.2, post:{...P_STD, ab:1.6, ray:0},
+  { t0: 0.00,    t1: T_WALL,  fn:sOpen,  ui:0.5, hh:1.2, post:{...P_STD, ab:1.6, ray:0},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: STROBE_HIT*1.4, interval:0, duration:1, slices:16, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
-  // the intro: city guns
-  { t0: CYC(3),  t1: CYC(5),  fn:sGlockWall(['glock19','glock','camo','blackred'], 1, LEN(CYC(3),CYC(5))), ui:1.0, hh:0.7,
+  // the intro's second phrase: city guns, one panel per hit
+  { t0: T_WALL,  t1: T_DUO,   fn:sGlockWall(['glock19','glock','camo','blackred'], 1, LEN(T_WALL,T_DUO), [0, 0.752, 1.405, 2.058]), ui:1.0, hh:0.7,
     cam:(t,u)=>{ CAM.scale = mix(1.0,1.05,eInOut(u)); }, post:{...P_STD, ray:0} },
-  { t0: CYC(5),  t1: CYC(8),  fn:sDuo('pabs','compact', 5, LEN(CYC(5),CYC(8))), ui:1.0, hh:0.8, push:true,
+  { t0: T_DUO,   t1: T_RISE,  fn:sDuo('pabs','compact', 5, LEN(T_DUO,T_RISE)), ui:1.0, hh:0.8, push:true,
     cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, ray:0} },
-  // the quiet break: the two turntable finishes, slow
-  { t0: CYC(8),  t1: CYC(11), fn:sHero1,  ui:1.0, hh:0.8, push:true,
-    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, ray:0.08} },
-  { t0: CYC(11), t1: CYC(15), fn:sReveal, ui:1.0, hh:0.8, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); },
-    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.05) } },
-  // the build: the pink builds, cuts quickening into the hit
-  { t0: CYC(15), t1: CYC(18), fn:sCustom('jasmine', 0, true, LEN(CYC(15),CYC(18))/(4*BEAT), 9), ui:1.0, hh:0.9,
-    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); kick(u*LEN(CYC(15),CYC(18)), 12); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
-  { t0: CYC(18), t1: CYC(20), fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); kick(u*2, 10); },
-    post:{...P_STD} },
-  { t0: CYC(20), t1: CYC(21), fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); kick(Math.max(0, u-0.5) + (u < 0.5 ? 9 : 0), 14); },
-    post:{...REVEAL_POST, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47}, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
-  { t0: CYC(21), t1: CYC(23), fn:sHero4,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
-  { t0: CYC(23), t1: TK(76),  fn:sRifles('jasAR','pyjama', 12, LEN(CYC(23),TK(76))), ui:1.0, hh:0.8, push:true,
-    cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, bloom:0.15, ray:0.08} },
-  { t0: TK(76),  t1: HIT,     fn:sBreak('BUILDS', '// 13 GUNS · 1 FIT', BREAK_FLICK), ui:0.6, hh:1.0,
+  // "stay with Vegas on the way": what's coming flickers in on the words
+  { t0: T_RISE,  t1: DROP[0], fn:sBreak('CUSTOMS', '// THE PINK BUILDS', BREAK_FLICK, [9.586, 9.894, 10.066, 10.250, 10.468, 10.622, 10.804, DROP[0]]), ui:0.6, hh:1.0,
     post:{...P_STD, bloom:0.16, ray:0.10},
     fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: Math.max(0, (u-0.6)*2.5)*0.8, interval:0, duration:1, slices:18, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
-  // THE HIT
-  { t0: HIT,     t1: CYC(28), fn:slam(sLineupAll, LEN(HIT, CYC(28))), ui:1.0, hh:0.7, cam:(t,u)=>{ kick(u*LEN(HIT, CYC(28)), 26); }, post:{...P_STD, ray:0.08} },
-  // the tail
-  { t0: CYC(28), t1: DURATION, fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47} }
+  // DROP 1: Ja$mine opens the pink builds
+  { t0: DROP[0], t1: BR(4),   fn:sCustom('jasmine', 0, true, LEN(DROP[0],BR(4))/(4*BEAT), 7), ui:1.0, hh:0.9,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); kick(u*LEN(DROP[0],BR(4)), 14); }, post:{...P_STD, bloom:0.15, hal:0.11, ray:0.08} },
+  // the quiet bar: Cash Wrap, then DROP 2 swaps it to the Pink Slide
+  { t0: BR(4),   t1: BR(4.5), fn:sHero1,  ui:1.0, hh:0.8, push:true,
+    cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, ray:0.08} },
+  { t0: BR(4.5), t1: BR(5.5), fn:sReveal, ui:1.0, hh:0.8, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); kick(Math.max(0, u-0.5)*LEN(BR(4.5),BR(5.5)) + (u < 0.5 ? 9 : 0), 12); },
+    post:REVEAL_POST, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.05) } },
+  { t0: BR(5.5), t1: BR(6),   fn:sHero2,  ui:1.0, hh:0.8, cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD} },
+  // the quiet bar: Black Slide, then DROP 3 opens the iris on BLOSSOM
+  { t0: BR(6),   t1: T_REV4,  fn:sHero3,   ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(-10,10,eInOut(u)); },
+    post:{...P_STD} },
+  { t0: T_REV4,  t1: DROP[2] + 0.757, fn:sReveal4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = 1.0 + 0.03*band(u,0.48,0.8,0.02,0.25); kick(Math.max(0, u-0.5)*1.514 + (u < 0.5 ? 9 : 0), 14); },
+    post:{...REVEAL_POST, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47}, fx:{ name:'Glitch', opts:GLITCH_AT(0.505, 0.06) } },
+  { t0: DROP[2] + 0.757, t1: BR(8), fn:sHero4, ui:1.0, hh:0.9, cam:(t,u)=>{ CAM.scale = mix(1.0,1.04,eInOut(u)); CAM.x = mix(10,-10,eInOut(u)); }, post:{...P_STD} },
+  // the quiet bar: all four finishes side by side
+  { t0: BR(8),   t1: DROP[3], fn:sQuad,    ui:1.0, hh:0.7, push:true, cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, ray:0.08} },
+  // DROP 4, the verse: the two custom rifles
+  { t0: DROP[3], t1: BR(10),  fn:hit(sRifles('jasAR','pyjama', 12, LEN(DROP[3],BR(10))), LEN(DROP[3],BR(10)), 0.5), ui:1.0, hh:0.8,
+    cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); kick(u*LEN(DROP[3],BR(10)), 16); }, post:{...P_STD, bloom:0.15, ray:0.08} },
+  // the quiet bar: the fit, then everything flickers into the last drop
+  { t0: BR(10),  t1: BR(10.5), fn:sFit,    ui:1.0, hh:0.8, push:true, cam:(t,u)=>{ CAM.scale = mix(1.0,1.03,eInOut(u)); }, post:{...P_STD, ray:0.06} },
+  { t0: BR(10.5), t1: DROP[4], fn:sBreak('BUILDS', '// 13 GUNS · 1 FIT', LAST_FLICK, [BR(10.5), 33.166, 33.390, 33.548, 33.832, 34.024, 34.152, DROP[4]]), ui:0.6, hh:1.0,
+    post:{...P_STD, bloom:0.16, ray:0.10},
+    fx:{ name:'Glitch', opts:(t,u,n)=>({ intensity: Math.max(0, (u-0.6)*2.5)*0.8, interval:0, duration:1, slices:18, shift:30, rgbShift:6, blocks:0.35, noise:0.25 }) } },
+  // DROP 5: the line-up slams in
+  { t0: DROP[4], t1: BR(12.5), fn:slam(sLineupAll, LEN(DROP[4], BR(12.5))), ui:1.0, hh:0.7, cam:(t,u)=>{ kick(u*LEN(DROP[4], BR(12.5)), 26); }, post:{...P_STD, ray:0.08} },
+  // the outro
+  { t0: BR(12.5), t1: DURATION, fn:sEnd,   ui:0.5, hh:0.7, cam:(t,u)=>{ CAM.scale = mix(1.04,1.0,eOutQuint(u)); }, post:{...P_STD, bloom:0.16, hal:0.12, ray:0.12, rayY:H*0.47} }
 ];
 const CLEAN = { ab:0.4, weave:0, hh:0.5, grain:0.035, glitch:0.6 };
 const CUTS = SCENES.map(s => s.t0).filter(v => v > 0);

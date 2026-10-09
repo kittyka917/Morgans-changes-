@@ -36,7 +36,7 @@ python3 extend.py
 
 Result: -14.0 LUFS, -1.1 dBFS peak.
 
-## Song 2 (`song2.mp3`, the current showcase)
+## Song 2 (`song2.mp3`)
 
 A 32.8 s instrumental (no speech: checked with showtime's transcriber). Measured
 with librosa: a tick every 0.333 s from 0.050 s, in ~1 s cycles of three; an
@@ -65,3 +65,31 @@ burst away:
 | +22 / +7 | -20.3 LUFS | +5.7 dB |
 | +24 / +8 | -19.0 LUFS | +3.2 dB |
 | +26 / +9 | -17.8 LUFS | +2.3 dB |
+
+## Song 3 (`song3.m4a`, the current showcase)
+
+The first audio track of a 44 s Medal clip, copied out without re-encoding:
+`ffmpeg -i clip.mp4 -map 0:a:0 -c copy song3.m4a`. Medal stores seven tracks.
+`0:a:0` and `0:a:5` hold the same mix, 5 ms apart; `0:a:3` is near-silent; the
+rest are silent. It decodes to 43.95 s.
+
+Measured with librosa and showtime's transcriber:
+- **Grid:** 157 BPM, a 0.1911 s sixteenth from 0.146 s, bars of 3.0576 s from
+  0.719 s.
+- **Intro, 0–9.6 s:** sparse. A "yeah" at 1.37 s, near-silence 3.1–4.9 s, and a
+  second phrase from 4.97 s.
+- **Vocal pickup, 9.59–11.2 s:** "stay with Vegas on the way".
+- **808 drops** (measured attacks): 11.227, 16.009, 22.117, 28.239 (the verse
+  comes in at 27.94 s) and 34.222 s. Each lasts a bar, with a quieter bar
+  between.
+- **Outro from 35.85 s:** the verse continues to the end of the clip.
+
+It was recorded quietly: −34.8 LUFS, peaks at −21 dBFS. The master is a plain
+gain with a light limiter (about 1.5 dB off the loudest peaks):
+
+```bash
+ffmpeg -i song3.m4a -af "afade=t=in:d=0.02,volume=21dB,alimiter=limit=0.84:attack=1:release=60:level=false,afade=t=out:st=43.55:d=0.4" \
+  -ar 48000 -c:a pcm_s24le song3_master.wav
+```
+
+Result after the AAC encode: −13.9 LUFS, −1.3 dBTP.

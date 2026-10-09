@@ -55,21 +55,26 @@ ffmpeg -y -framerate 60 -i bframes/f%05d.png -i music/song_master.wav -c:v libx2
 ## The full showcase (`showcase.html`)
 
 Every gun from Morgie's Gun Showcase and Morgan's Builds in **one cut**, on
-`music/song2.mp3` (32.8 s; grid and master in `music/README.md`), with one
-running count, 01–13, across both sources. The cut follows the song's shape:
+`music/song3.m4a` (43.95 s; grid, drops and master in `music/README.md`), with
+one running count, 01–13, across both sources. Each 808 drop lands a moment:
 
 | Time | Song | Shot |
 |---|---|---|
-| 0:00 | intro | Title card; strobes of the customs on ticks 3, 4, 6, 7 |
-| 0:03.0 | intro | 01–04 **the Glock wall**: four panels land one per tick, all spinning live |
-| 0:05.0 | intro | 05–06 Pabs FN \| Compact Rifle on a diagonal split (pushes in) |
-| 0:08.0 | quiet break | 07 Cash Wrap's hero spin (pushes in) |
-| 0:11.0 | quiet break | The wipe into 08 Pink Slide on the matched pose |
-| 0:15.0 | build | 09 Ja$mine (petal ring) → 10 Black Slide → iris into 11 BLOSSOM and its callouts |
-| 0:23.0 | build | 12–13 Ja$mine AR and Pyjama G3 share a frame (pushes in) |
-| 0:25.4 | build | The pink builds flicker in on quickening ticks |
-| **0:26.39** | **the burst** | **The line-up slams in** — all 13 guns and the fit, flash, petals, camera jolt |
-| 0:28.0 | tail | End card, fades out with the song |
+| 0:00 | intro | Title card; strobes of the customs on the "yeah" and the hits after it |
+| 0:04.97 | intro, 2nd phrase | 01–04 **the Glock wall**: a panel lands on each hit, all spinning live |
+| 0:07.37 | intro | 05–06 Pabs FN \| Compact Rifle on a diagonal split (pushes in) |
+| 0:09.59 | vocal pickup | The pink builds flicker in on the words "stay with Vegas on the way" |
+| **0:11.23** | **drop 1** | **07 Ja$mine** opens in a petal ring |
+| 0:12.95 | quiet bar | 08 Cash Wrap's hero spin (pushes in) |
+| **0:16.01** | **drop 2** | The wipe swaps it to **09 Pink Slide** on the matched pose; it spins and settles |
+| 0:19.07 | quiet bar | 10 Black Slide and its callouts |
+| **0:22.12** | **drop 3** | The iris opens on **11 BLOSSOM** |
+| 0:25.18 | quiet bar | The four finishes side by side (pushes in) |
+| **0:28.24** | **drop 4, the verse** | **12–13 Ja$mine AR and Pyjama G3** share a frame |
+| 0:31.30 | quiet bar | The fit (pushes in) |
+| 0:32.83 | quiet bar | Everything flickers in on the hits |
+| **0:34.22** | **drop 5** | **The line-up slams in**: all 13 guns and the fit, flash, petals, camera jolt |
+| 0:38.94 | outro | End card, fades out with the song |
 
 MORG is the same gun as finish 03, so it appears once, as Black Slide.
 `showcase.html` is assembled from the engine and scenes of `morgie.html` and
