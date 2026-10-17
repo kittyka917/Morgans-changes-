@@ -31,8 +31,10 @@ chat, for example `Footage Drop upload <doc id> (clip.mp4): funny edit`.
 1. Read the manifest. Use `ArtifactData` with `action: "get"`, the URL above,
    `collection: "uploads"` and the doc id. Add `out_dir` to save it as JSON.
 2. Download the parts. Use `Artifact` with `action: "read"`, the URL, and
-   `paths` set to every part `id` (up to 256 per call). Each part is saved as
-   `<id>.mp4`.
+   `path` set to one part `id`, once per part; independent reads can go in
+   one message. `paths` does not work here: it only finds published page
+   files, not uploaded assets. Each part is saved as `<id>.mp4` in the
+   scratchpad's `artifact-files/<artifact>/` folder.
 3. Rebuild and verify. Run
    `python3 tools/footage-drop/join.py MANIFEST.json PARTS_DIR OUT.mp4`.
    It checks every part's length and SHA-256 and the total size, writes the
@@ -47,6 +49,8 @@ chat, for example `Footage Drop upload <doc id> (clip.mp4): funny edit`.
   spaces.
 - **`join.py`:** a rebuilt file is byte-identical to the original; a corrupted
   part or a missing part stops it, and no file is written.
+- **First real upload:** a 78.9 MB Medal render arrived as 4 parts and was
+  rebuilt with every checksum matching.
 - **Store round trip:** a 19 MiB slice cut from the middle of an MP4 (no
   header) was accepted as `video/mp4`, read back by its id, and its SHA-256
   matched.
