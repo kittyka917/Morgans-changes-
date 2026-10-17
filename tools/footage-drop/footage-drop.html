@@ -1,0 +1,358 @@
+<title>Footage Drop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column, a drop bay up top, then the footage list; each upload is a strip of parts like frames on film. */
+:root{
+  --bg:#f5f1f4; --surface:#ffffff; --sunk:#ece5ea; --fg:#1d141b; --muted:#6c5e6a; --line:#ddd2da;
+  --accent:#c92a76; --accent-ink:#ffffff; --accent-soft:#f7dbe8;
+  --ok:#17845a; --warn:#a85f06; --err:#b8322a;
+  --display:"Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#130e13; --surface:#1d161c; --sunk:#271e26; --fg:#f3eaf1; --muted:#a8969f; --line:#3a2d38;
+  --accent:#ff5ea6; --accent-ink:#1a0711; --accent-soft:#3d1a2c;
+  --ok:#4cc58e; --warn:#f0a54a; --err:#ff7466; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#130e13; --surface:#1d161c; --sunk:#271e26; --fg:#f3eaf1; --muted:#a8969f; --line:#3a2d38;
+  --accent:#ff5ea6; --accent-ink:#1a0711; --accent-soft:#3d1a2c;
+  --ok:#4cc58e; --warn:#f0a54a; --err:#ff7466; color-scheme:dark }
+
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 56px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:28px}
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0}
+h1{font-size:2.1rem;line-height:1.05}
+h2{font-size:1.15rem;text-transform:uppercase;letter-spacing:.08em}
+p{margin:0}
+.lede{color:var(--muted);max-width:62ch}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+header{display:grid;gap:14px}
+.meter{display:grid;gap:6px}
+.meter .row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+.bar{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+.bay{border:2px dashed var(--line);border-radius:14px;background:var(--surface);padding:28px 20px;display:grid;gap:14px;justify-items:center;text-align:center;transition:border-color .15s, background .15s}
+.bay.over{border-color:var(--accent);background:var(--accent-soft)}
+.bay .big{font-family:var(--display);font-size:1.35rem;font-weight:600}
+.bay .small{color:var(--muted);font-size:.88rem;max-width:52ch}
+.note{width:100%;max-width:520px;display:grid;gap:6px;text-align:left}
+.note label{font-size:.82rem;color:var(--muted)}
+input[type=text]{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;box-sizing:border-box}
+button{font:600 .9rem var(--body);border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.danger{color:var(--err);border-color:var(--err)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.msg{font-size:.9rem;padding:10px 12px;border-radius:8px;background:var(--sunk)}
+.msg.err{color:var(--err)}
+
+.list{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.top{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.name{font-weight:600;word-break:break-all;min-width:0;flex:1 1 260px}
+.meta{font-size:.82rem;color:var(--muted);display:flex;gap:6px 14px;flex-wrap:wrap}
+.chip{font:600 .75rem var(--body);text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok)} .chip.run{color:var(--accent)} .chip.wait{color:var(--warn)}
+.strip{display:flex;gap:3px;padding:6px;background:var(--sunk);border-radius:6px}
+.strip span{flex:1 1 0;min-width:2px;height:16px;border-radius:2px;background:var(--line)}
+.strip span.done{background:var(--accent)}
+.strip span.now{background:var(--accent);opacity:.45;animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{to{opacity:.9}}
+@media (prefers-reduced-motion: reduce){.strip span.now{animation:none}.bar i{transition:none}}
+.req{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.req input{flex:1 1 220px;min-width:0;font-family:var(--mono);font-size:.82rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.empty{color:var(--muted);text-align:center;padding:26px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.how{font-size:.88rem;color:var(--muted);display:grid;gap:6px}
+.how ol{margin:0;padding-left:1.2em;display:grid;gap:4px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Footage Drop</h1>
+    <p class="lede">Hand Claude gameplay recordings of any size. Big files are cut into 19&nbsp;MB parts here and checksummed, then Claude joins them back into your exact original before editing.</p>
+    <div class="meter" id="meter" hidden>
+      <div class="row"><span>Storage on this page</span><span class="num" id="meterText"></span></div>
+      <div class="bar"><i id="meterBar"></i></div>
+    </div>
+  </header>
+
+  <section class="bay" id="bay" aria-label="Upload footage">
+    <div class="big">Drop video files here</div>
+    <p class="small">MP4, MOV, MKV or WEBM from Medal, OBS or ShadowPlay. Keep this page open until every part is in; if it closes, choose the same file again to carry on.</p>
+    <div class="note">
+      <label for="noteInput">What should Claude make from it? (optional)</label>
+      <input type="text" id="noteInput" placeholder="Funny FiveM edit, about 60 seconds">
+    </div>
+    <input type="file" id="pick" accept="video/*,.mkv,.mov" multiple hidden>
+    <input type="file" id="resumePick" accept="video/*,.mkv,.mov" hidden>
+    <button class="primary" id="chooseBtn" disabled>Choose files</button>
+    <p class="msg" id="bayMsg" hidden></p>
+  </section>
+
+  <section class="list" aria-labelledby="listHead">
+    <h2 id="listHead">Your footage</h2>
+    <div id="list"><p class="empty">Connecting to this page's storage…</p></div>
+  </section>
+
+  <section class="how">
+    <h2>How Claude gets it</h2>
+    <ol>
+      <li>Upload here and wait for the strip to fill.</li>
+      <li>Press <b>Copy request</b> and paste it into your chat with Claude.</li>
+      <li>Claude downloads every part, checks each checksum, and rebuilds the file before it touches a frame.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+const MiB = 1048576, PART = 19 * MiB;
+// A binary upload may not open with markup: a part must not start on a blank byte or '<'.
+const BAD = new Set([9, 10, 11, 12, 13, 32, 60]);
+const $ = s => document.querySelector(s);
+let db = null, assets = null, uploads = [], busy = false, live = null, confirming = null, resumeTarget = null;
+const queue = [];
+
+const mb = n => (n / MiB).toFixed(n < 10 * MiB ? 1 : 0) + ' MB';
+const gb = n => n >= 1024 * MiB ? (n / 1024 / MiB).toFixed(2) + ' GB' : mb(n);
+function say(text, err){ const m = $('#bayMsg'); m.textContent = text || ''; m.hidden = !text; m.classList.toggle('err', !!err); }
+
+function explain(e){
+  switch (e && e.code){
+    case 'quota_or_state': return 'This page has no room left. Delete an upload Claude has already used, then choose the file again to carry on.';
+    case 'rate_limited': return 'Uploads paused for a moment because too many parts went up at once. Wait a minute, then choose the same file again to carry on.';
+    case 'unsupported_type': return 'The storage refused this part as a video. Tell Claude, and send the file another way for now.';
+    case 'too_large': return 'A part came out too large. Tell Claude about this one.';
+    case 'upstream_auth': return 'Your sign-in expired. Reload the page, then choose the same file again to carry on.';
+    case 'not_granted': case 'capability_disabled': case 'capability_removed': return 'Uploading is not available in this view. Open the page signed in as its owner.';
+    case 'quota_exceeded': return 'The upload list is full. Delete an old upload first.';
+    default: return 'The upload stopped (' + ((e && (e.code || e.message)) || 'unknown error') + '). Choose the same file again to carry on.';
+  }
+}
+
+async function refreshMeter(){
+  if (!assets) return null;
+  try {
+    const { usage } = await assets.list();
+    $('#meter').hidden = false;
+    $('#meterText').textContent = gb(usage.bytes) + ' of ' + gb(usage.maxBytes) + ' · ' + usage.files + ' of ' + usage.maxFiles + ' parts';
+    $('#meterBar').style.width = Math.min(100, 100 * usage.bytes / Math.max(1, usage.maxBytes)) + '%';
+    return usage;
+  } catch (e) { return null; }
+}
+
+async function sha256(buf){
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+  return Array.from(h, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Part boundaries, fixed per file so a resumed upload cuts at the same places.
+async function planParts(file){
+  const first = new Uint8Array(await file.slice(0, 1).arrayBuffer());
+  if (!first.length || BAD.has(first[0])) throw { code: 'not_video', message: 'This does not look like a video file.' };
+  const parts = []; let s = 0;
+  while (s < file.size){
+    let e = Math.min(s + PART, file.size);
+    if (e < file.size){
+      const w0 = Math.max(s + 1, e - 4096);
+      const win = new Uint8Array(await file.slice(w0, e + 1).arrayBuffer());
+      let j = win.length - 1;
+      while (j > 0 && BAD.has(win[j])) j--;
+      e = w0 + j;
+    }
+    parts.push({ i: parts.length, start: s, end: e, sha256: null, id: null });
+    s = e;
+  }
+  return parts;
+}
+
+async function uploadPart(file, p){
+  const buf = await file.slice(p.start, p.end).arrayBuffer();
+  const hash = await sha256(buf);
+  let res, tries = 0;
+  for (;;){
+    try { res = await assets.upload(new Blob([buf], { type: 'video/mp4' }), { type: 'video/mp4' }); break; }
+    catch (e){
+      if (e && e.code === 'store_unavailable' && tries++ === 0){ await new Promise(r => setTimeout(r, 3000)); continue; }
+      throw e;
+    }
+  }
+  if (res.sizeBytes !== p.end - p.start) throw { code: 'size_mismatch', message: 'part ' + (p.i + 1) + ' stored ' + res.sizeBytes + ' bytes' };
+  return { ...p, sha256: hash, id: res.id };
+}
+
+async function run(file, existing){
+  let ref, rec;
+  if (existing){
+    ref = db.collection('uploads').doc(existing.id);
+    rec = { ...existing, parts: existing.parts.map(p => ({ ...p })) };
+  } else {
+    const parts = await planParts(file);
+    rec = { name: file.name, size: file.size, type: file.type || '', lastModified: file.lastModified,
+            note: $('#noteInput').value.trim(), createdAt: new Date().toISOString(), partSize: PART,
+            parts, total: parts.length, done: 0, complete: false };
+    ref = db.collection('uploads').doc();
+  }
+  const todo = rec.parts.filter(p => !p.id);
+  const need = todo.reduce((a, p) => a + p.end - p.start, 0);
+  const usage = await refreshMeter();
+  if (usage && (usage.bytes + need > usage.maxBytes || usage.files + todo.length > usage.maxFiles)){
+    throw { code: 'quota_or_state', message: 'needs ' + gb(need) + ', ' + gb(Math.max(0, usage.maxBytes - usage.bytes)) + ' free' };
+  }
+  if (!existing){ const { id, ...body } = rec; await ref.set(body); }
+  live = { docId: ref.id, part: null, sent: rec.parts.filter(p => p.id).reduce((a, p) => a + p.end - p.start, 0), total: rec.size, t0: performance.now(), base: 0 };
+  live.base = live.sent; render();
+  for (const p of todo){
+    live.part = p.i; render();
+    const done = await uploadPart(file, p);
+    rec.parts[p.i] = done;
+    rec.done = rec.parts.filter(q => q.id).length;
+    rec.complete = rec.done === rec.total;
+    await ref.update({ parts: rec.parts, done: rec.done, complete: rec.complete, updatedAt: new Date().toISOString() });
+    live.sent += p.end - p.start; render();
+  }
+  live = null; refreshMeter();
+}
+
+async function pump(){
+  if (busy) return;
+  busy = true; $('#chooseBtn').disabled = true;
+  while (queue.length){
+    const job = queue.shift();
+    say('Uploading ' + job.file.name + '…');
+    try { await run(job.file, job.existing); say(job.file.name + ' is in. Press Copy request and paste it to Claude.'); }
+    catch (e){ live = null; say(explain(e) + (e && e.message && e.code === 'quota_or_state' ? ' (' + e.message + ')' : ''), true); queue.length = 0; }
+    render();
+  }
+  busy = false; $('#chooseBtn').disabled = !assets || !db;
+}
+
+function addFiles(list){
+  for (const f of list){
+    if (!f.size) continue;
+    if (!/^video\//.test(f.type) && !/\.(mp4|mov|mkv|webm|m4v)$/i.test(f.name)){ say(f.name + ' is not a video file, so it was skipped.', true); continue; }
+    queue.push({ file: f });
+  }
+  pump();
+}
+
+function render(){
+  const el = $('#list');
+  if (!db){ return; }
+  if (!uploads.length){ el.innerHTML = ''; const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'No footage yet. Drop a recording above; files over 30 MB are fine.'; el.append(p); return; }
+  el.innerHTML = '';
+  for (const u of uploads){
+    const parts = Array.isArray(u.parts) ? u.parts : [];
+    const isLive = live && live.docId === u.id;
+    const card = document.createElement('article'); card.className = 'card';
+    const top = document.createElement('div'); top.className = 'top';
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = u.name || 'Untitled';
+    const chip = document.createElement('span'); chip.className = 'chip';
+    if (u.complete){ chip.classList.add('ok'); chip.textContent = 'Ready for Claude'; }
+    else if (isLive){ chip.classList.add('run'); chip.textContent = 'Uploading'; }
+    else { chip.classList.add('wait'); chip.textContent = 'Paused'; }
+    top.append(name, chip);
+
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const when = u.createdAt ? new Date(u.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const doneN = parts.filter(p => p.id).length;
+    [[gb(u.size || 0), true], [doneN + ' of ' + parts.length + ' parts', true], [when, false]].forEach(([t, n]) => {
+      if (!t) return; const s = document.createElement('span'); s.textContent = t; if (n) s.className = 'num'; meta.append(s);
+    });
+    if (isLive && live.sent > live.base){
+      const secs = (performance.now() - live.t0) / 1000, rate = (live.sent - live.base) / Math.max(.5, secs);
+      const left = (live.total - live.sent) / Math.max(1, rate);
+      const s = document.createElement('span'); s.className = 'num';
+      s.textContent = (rate / MiB).toFixed(1) + ' MB/s · about ' + (left < 90 ? Math.ceil(left) + ' s' : Math.ceil(left / 60) + ' min') + ' left';
+      meta.append(s);
+    }
+
+    const strip = document.createElement('div'); strip.className = 'strip';
+    strip.setAttribute('role', 'img'); strip.setAttribute('aria-label', doneN + ' of ' + parts.length + ' parts uploaded');
+    parts.forEach(p => { const s = document.createElement('span'); if (p.id) s.className = 'done'; else if (isLive && live.part === p.i) s.className = 'now'; strip.append(s); });
+    card.append(top, meta, strip);
+
+    if (u.note){ const n = document.createElement('p'); n.className = 'meta'; n.textContent = 'For Claude: ' + u.note; card.append(n); }
+
+    const actions = document.createElement('div'); actions.className = 'actions';
+    if (u.complete){
+      const req = document.createElement('div'); req.className = 'req';
+      const inp = document.createElement('input'); inp.type = 'text'; inp.readOnly = true; inp.id = 'req-' + u.id;
+      inp.value = 'Footage Drop upload ' + u.id + ' (' + (u.name || 'video') + ')' + (u.note ? ': ' + u.note : '');
+      inp.setAttribute('aria-label', 'Request to paste to Claude');
+      const copy = document.createElement('button'); copy.className = 'primary'; copy.textContent = 'Copy request';
+      copy.onclick = async () => {
+        try { await navigator.clipboard.writeText(inp.value); copy.textContent = 'Copied'; }
+        catch (e){ inp.focus(); inp.select(); copy.textContent = 'Press Ctrl+C'; }
+        setTimeout(() => { copy.textContent = 'Copy request'; }, 2200);
+      };
+      req.append(inp, copy); card.append(req);
+    } else if (!isLive){
+      const res = document.createElement('button'); res.textContent = 'Choose the same file to carry on';
+      res.disabled = busy || !assets;
+      res.onclick = () => { resumeTarget = u; $('#resumePick').value = ''; $('#resumePick').click(); };
+      actions.append(res);
+    }
+    if (!isLive && assets){
+      if (confirming === u.id){
+        const warn = document.createElement('span'); warn.className = 'meta'; warn.textContent = 'Delete all ' + doneN + ' stored parts? This cannot be undone.';
+        const yes = document.createElement('button'); yes.className = 'danger'; yes.textContent = 'Delete';
+        const no = document.createElement('button'); no.textContent = 'Keep it';
+        yes.onclick = () => removeUpload(u); no.onclick = () => { confirming = null; render(); };
+        actions.append(warn, yes, no);
+      } else {
+        const del = document.createElement('button'); del.className = 'danger'; del.textContent = 'Delete';
+        del.disabled = busy; del.onclick = () => { confirming = u.id; render(); };
+        actions.append(del);
+      }
+    }
+    if (actions.childNodes.length) card.append(actions);
+    el.append(card);
+  }
+}
+
+async function removeUpload(u){
+  confirming = null; busy = true; render();
+  try {
+    for (const p of (u.parts || [])) if (p.id) await assets.delete(p.id);
+    await db.collection('uploads').doc(u.id).delete();
+    say('Deleted ' + (u.name || 'the upload') + '.');
+  } catch (e){ say(explain(e), true); }
+  busy = false; render(); refreshMeter(); $('#chooseBtn').disabled = !assets || !db;
+}
+
+// ---------- wiring ----------
+const bay = $('#bay');
+['dragenter', 'dragover'].forEach(t => bay.addEventListener(t, e => { e.preventDefault(); if (assets && db) bay.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => bay.addEventListener(t, e => { e.preventDefault(); bay.classList.remove('over'); }));
+bay.addEventListener('drop', e => { if (assets && db && e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+$('#chooseBtn').onclick = () => { $('#pick').value = ''; $('#pick').click(); };
+$('#pick').onchange = e => addFiles(e.target.files);
+$('#resumePick').onchange = e => {
+  const f = e.target.files[0], u = resumeTarget; resumeTarget = null;
+  if (!f || !u) return;
+  if (f.size !== u.size || f.name !== u.name){ say('That is not the same file: ' + u.name + ' is ' + gb(u.size) + '. Choose that one to carry on.', true); return; }
+  queue.push({ file: f, existing: u }); pump();
+};
+
+(async () => {
+  const C = window.claude;
+  if (!C || !C.use){ $('#list').innerHTML = '<p class="empty">Open this page on claude.ai to upload footage.</p>'; return; }
+  [db, assets] = await Promise.all([C.use('db'), C.use('assets')]);
+  if (!db){ $('#list').innerHTML = '<p class="empty">Sign in to claude.ai to see your footage.</p>'; return; }
+  if (!assets) say('Only the owner of this page can upload. Open it signed in as its owner.', true);
+  $('#chooseBtn').disabled = !assets;
+  refreshMeter();
+  db.collection('uploads').orderBy('createdAt', 'desc').onSnapshot(
+    snap => { uploads = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); },
+    err => { $('#list').innerHTML = ''; const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'The footage list stopped updating. Reload the page.'; $('#list').append(p); }
+  );
+})();
+</script>
