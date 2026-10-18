@@ -1,0 +1,14 @@
+{
+  "name": "seamline",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Browser viewer for GTA V / FiveM clothing (.ydd models and .ytd textures).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}

@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Seamline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a tailor's workbench in three panes. Files on the left, the garment on a
+   green cutting mat in the middle, a measuring-tape inspector on the right. */
+:root {
+  --bg: #e9edf0;
+  --panel: #f7f9fa;
+  --raised: #ffffff;
+  --ink: #15202a;
+  --muted: #5a6776;
+  --line: #d3dae1;
+  --hover: #e4e9ee;
+  --select: #fbf1d2;
+  --accent: #e0a200;          /* measuring-tape yellow */
+  --accent-ink: #231a00;
+  --mat: #24443d;             /* cutting mat */
+  --mat-minor: #2f5a51;
+  --mat-major: #4b7f72;
+  --mat-ink: #d9ebe5;
+  --danger: #b3261e;
+  --danger-bg: #fbe9e7;
+  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 10px;
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-md: 0.94rem;
+  --text-lg: 1.25rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1418; --panel: #141c22; --raised: #1a242c; --ink: #e2e9ee; --muted: #8b9aa7;
+    --line: #26323c; --hover: #1d2830; --select: #3a3114; --accent: #f2b928; --accent-ink: #231a00;
+    --mat: #142723; --mat-minor: #1d3832; --mat-major: #2f574d; --mat-ink: #cfe3dc;
+    --danger: #ff8a80; --danger-bg: #3a1714;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1418; --panel: #141c22; --raised: #1a242c; --ink: #e2e9ee; --muted: #8b9aa7;
+  --line: #26323c; --hover: #1d2830; --select: #3a3114; --accent: #f2b928; --accent-ink: #231a00;
+  --mat: #142723; --mat-minor: #1d3832; --mat-major: #2f574d; --mat-ink: #cfe3dc;
+  --danger: #ff8a80; --danger-bg: #3a1714;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 var(--text-md)/1.45 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(220px, 290px) minmax(0, 1fr) minmax(250px, 320px);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top top top" "files stage inspect";
+  gap: 12px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---- Top bar ---- */
+.top { grid-area: top; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 {
+  margin: 0;
+  font: 800 1.6rem/1 var(--font-display);
+  font-stretch: 78%;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.brand h1 span { color: var(--accent); }
+.brand small { font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted); letter-spacing: 0.04em; }
+.summary { font: 500 var(--text-sm)/1.2 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--raised); color: var(--ink);
+  padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: var(--text-sm); font-weight: 500;
+}
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; flex: none; }
+
+/* ---- Panes ---- */
+.pane {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: 0; min-width: 0;
+  display: flex; flex-direction: column;
+}
+.pane-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+}
+.label {
+  font: 600 var(--text-xs)/1 var(--font-body);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+
+/* Files */
+.files { grid-area: files; }
+.search { padding: 10px 12px 6px; }
+.search input {
+  width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--raised); font-size: var(--text-sm);
+}
+.tree { overflow: auto; padding: 4px 6px 10px; flex: 1; min-height: 0; }
+.coll { margin-top: 8px; }
+.coll-name {
+  font: 500 var(--text-xs)/1.3 var(--font-mono); color: var(--muted);
+  padding: 6px 8px 4px; overflow-wrap: anywhere;
+}
+.slot-head {
+  width: 100%; display: flex; align-items: center; gap: 6px; border: 0; background: none;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer; text-align: left;
+  font: 600 var(--text-sm)/1.2 var(--font-display); font-stretch: 92%;
+}
+.slot-head:hover { background: var(--hover); }
+.slot-head .chev { width: 12px; transition: transform 0.15s; color: var(--muted); }
+.slot-head[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.slot-head .count { margin-left: auto; font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted); }
+.slot-head .sid { font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted); }
+.item {
+  width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: none;
+  padding: 5px 8px 5px 26px; border-radius: 6px; cursor: pointer; text-align: left;
+  font: 400 var(--text-sm)/1.25 var(--font-mono);
+}
+.item:hover { background: var(--hover); }
+.item[aria-selected="true"] { background: var(--select); font-weight: 500; }
+.item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.item .tex { margin-left: auto; flex: none; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.item .tex.none { color: var(--danger); }
+.tree-empty { padding: 18px 12px; color: var(--muted); font-size: var(--text-sm); }
+
+/* Stage */
+.stage { grid-area: stage; position: relative; overflow: hidden; background: var(--mat); border-color: var(--mat-major); }
+.stage canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.toolbar {
+  position: absolute; top: 10px; left: 10px; right: 10px;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center; pointer-events: none;
+}
+.toolbar > * { pointer-events: auto; }
+.seg { display: inline-flex; border-radius: 7px; overflow: hidden; border: 1px solid var(--mat-major); }
+.chip {
+  border: 0; background: color-mix(in srgb, var(--mat) 70%, black 30%); color: var(--mat-ink);
+  padding: 5px 9px; font: 500 var(--text-xs)/1.2 var(--font-mono); cursor: pointer; letter-spacing: 0.02em;
+}
+.chip + .chip { border-left: 1px solid var(--mat-major); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.chip.solo { border: 1px solid var(--mat-major); border-radius: 7px; }
+.tape {
+  position: absolute; left: 10px; bottom: 10px;
+  display: flex; align-items: stretch; border-radius: 4px; overflow: hidden;
+  font: 500 var(--text-xs)/1 var(--font-mono); font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+.tape span { background: var(--accent); color: var(--accent-ink); padding: 6px 8px; }
+.tape span + span { border-left: 1px dashed color-mix(in srgb, var(--accent-ink) 45%, transparent); }
+.tape b { font-weight: 600; margin-right: 4px; opacity: 0.7; }
+.hint {
+  position: absolute; right: 12px; bottom: 10px; color: var(--mat-ink); opacity: 0.75;
+  font: 400 var(--text-xs)/1.4 var(--font-mono); text-align: right;
+}
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center;
+  color: var(--mat-ink);
+}
+.overlay .msg { max-width: 46ch; display: grid; gap: 10px; justify-items: center; }
+.overlay h2 { margin: 0; font: 700 var(--text-lg)/1.2 var(--font-display); font-stretch: 90%; text-wrap: balance; }
+.overlay p { margin: 0; font-size: var(--text-sm); opacity: 0.85; }
+.overlay.error .msg { background: var(--danger-bg); color: var(--ink); padding: 16px 18px; border-radius: 8px; border: 1px solid var(--danger); }
+.overlay.error code { font: 400 var(--text-xs)/1.4 var(--font-mono); overflow-wrap: anywhere; }
+.drop { background: color-mix(in srgb, var(--mat) 80%, transparent); border: 2px dashed var(--accent); border-radius: var(--radius); }
+canvas.flat { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Inspector */
+.inspect { grid-area: inspect; overflow: auto; }
+.inspect section { padding: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+.inspect section:last-child { border-bottom: 0; }
+.title h2 { margin: 0; font: 700 1.35rem/1.1 var(--font-display); font-stretch: 85%; overflow-wrap: anywhere; }
+.title .path { font: 400 var(--text-xs)/1.4 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+.title .tag { justify-self: start; font: 600 var(--text-xs)/1 var(--font-body); letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 7px; border-radius: 4px; background: var(--hover); color: var(--muted); }
+.stats { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0; font-size: var(--text-sm); }
+.stats dt { color: var(--muted); }
+.stats dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; min-width: 0; }
+.variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.variant {
+  border: 1px solid var(--line); background: var(--raised); border-radius: 8px; padding: 5px; cursor: pointer;
+  display: grid; gap: 5px; text-align: left; min-width: 0;
+}
+.variant:hover { border-color: var(--muted); }
+.variant[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.variant .thumb {
+  aspect-ratio: 1; max-width: 100%; border-radius: 5px; display: block; width: 100%; object-fit: cover;
+  background: repeating-conic-gradient(var(--hover) 0 25%, var(--raised) 0 50%) 0 0 / 12px 12px;
+}
+.variant .vl { display: grid; gap: 1px; font: 500 var(--text-xs)/1.2 var(--font-mono); min-width: 0; }
+.variant .vl b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.variant .vl small { font-size: 0.66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.variant.failed .thumb { display: grid; place-items: center; color: var(--danger); font: 600 var(--text-xs)/1 var(--font-body); }
+.field { display: grid; gap: 5px; }
+.field label { font-size: var(--text-xs); color: var(--muted); }
+.field select { width: 100%; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--raised); font-size: var(--text-sm); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: var(--text-sm); margin: 0; }
+.problems { display: grid; gap: 6px; }
+.problem { font: 400 var(--text-xs)/1.4 var(--font-mono); padding: 7px 8px; border-radius: 6px; background: var(--danger-bg); overflow-wrap: anywhere; }
+.problem b { display: block; color: var(--danger); font-weight: 500; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: var(--text-sm);
+  z-index: 20;
+}
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "top" "stage" "inspect" "files";
+  }
+  .stage { height: 62svh; min-height: 320px; }
+  .files .tree { max-height: 60svh; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Seam<span>line</span></h1>
+      <small>.ydd · .ytd viewer</small>
+    </div>
+    <div class="summary" id="summary">No files loaded</div>
+    <div class="actions">
+      <button class="btn primary" id="open-folder" type="button">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M1.5 4.5v8h13v-6.5H7.5L6 4.5z"/></svg>
+        Open stream folder
+      </button>
+      <button class="btn" id="open-files" type="button">Open files</button>
+      <button class="btn" id="load-demo" type="button">Load demo</button>
+      <input type="file" id="folder-input" webkitdirectory multiple hidden>
+      <input type="file" id="files-input" accept=".ydd,.ytd" multiple hidden>
+    </div>
+  </header>
+
+  <aside class="pane files" aria-label="Files">
+    <div class="pane-head"><span class="label">Wardrobe</span><span class="label" id="file-count"></span></div>
+    <div class="search"><input id="search" type="search" placeholder="Filter, e.g. jbib or 012" autocomplete="off" aria-label="Filter models"></div>
+    <div class="tree" id="tree" role="listbox" aria-label="Models"></div>
+  </aside>
+
+  <main class="pane stage" id="stage" aria-label="Viewport">
+    <canvas class="gl" id="gl"></canvas>
+    <canvas class="flat" id="flat" hidden></canvas>
+    <div class="toolbar" id="toolbar">
+      <div class="seg" role="group" aria-label="Level of detail" id="lod-group">
+        <button class="chip" type="button" data-lod="high" aria-pressed="true">HIGH</button>
+        <button class="chip" type="button" data-lod="med" aria-pressed="false">MED</button>
+        <button class="chip" type="button" data-lod="low" aria-pressed="false">LOW</button>
+        <button class="chip" type="button" data-lod="vlow" aria-pressed="false">VLOW</button>
+      </div>
+      <div class="seg" role="group" aria-label="Display">
+        <button class="chip" type="button" id="t-wire" aria-pressed="false">WIRE</button>
+        <button class="chip" type="button" id="t-alpha" aria-pressed="true">ALPHA</button>
+        <button class="chip" type="button" id="t-grid" aria-pressed="true">MAT</button>
+        <button class="chip" type="button" id="t-spin" aria-pressed="false">SPIN</button>
+      </div>
+      <button class="chip solo" type="button" id="reset-view">RESET VIEW</button>
+    </div>
+    <div class="tape" id="tape" hidden aria-label="Model size"></div>
+    <div class="hint" id="hint">drag orbit · right-drag pan · scroll zoom<br>↑ ↓ models · ← → textures</div>
+    <div class="overlay" id="overlay" hidden><div class="msg" id="overlay-msg"></div></div>
+    <div class="overlay drop" id="drop" hidden><div class="msg"><h2>Drop your stream folder</h2><p>.ydd and .ytd files are read in your browser. Nothing is uploaded.</p></div></div>
+  </main>
+
+  <aside class="pane inspect" id="inspect" aria-label="Inspector"></aside>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">import*as b from"three";import{OrbitControls as Hn}from"three/addons/controls/OrbitControls.js";import{GLTFExporter as Nn}from"three/addons/exporters/GLTFExporter.js";var I=class extends Error{};function Zt(t){let e=(t>>>27&1)<<0,n=(t>>>26&1)<<1,o=(t>>>25&1)<<2,s=(t>>>24&1)<<3,r=(t>>>17&127)<<4,a=(t>>>11&63)<<5,l=(t>>>7&15)<<6,i=(t>>>5&3)<<7,c=(t>>>4&1)<<8;return(512<<(t&15))*(e+n+o+s+r+a+l+i+c)}async function Pe(t){let e=new Blob([t]).stream().pipeThrough(new DecompressionStream("deflate-raw"));return new Uint8Array(await new Response(e).arrayBuffer())}async function xt(t){if(t.length<16)throw new I("File is too small to be a resource.");let e=new DataView(t.buffer,t.byteOffset,t.byteLength);if(e.getUint32(0,!0)!==927159122){let c=String.fromCharCode(t[0],t[1],t[2],t[3]).replace(/[^\x20-\x7e]/g,"?");throw c==="RSC8"?new I("This is a GTA V Enhanced (gen9) resource, which FiveM does not use. Not supported."):new I(`Not an RSC7 resource (header "${c}"). It may be encrypted (e.g. FiveM escrow) or not a GTA resource.`)}let o=e.getUint32(4,!0),s=e.getUint32(8,!0),r=e.getUint32(12,!0),a;try{a=await Pe(t.subarray(16))}catch(c){throw new I(`Could not decompress resource data (${c.message}). The file may be encrypted or corrupt.`)}let l=Zt(s),i=Zt(r);return l>a.length&&(l=a.length),l+i>a.length&&(i=a.length-l),{version:o,systemFlags:s,graphicsFlags:r,systemSize:l,graphicsSize:i,data:a,reader:new kt(a,l,i)}}var kt=class{constructor(e,n,o){this.data=e,this.systemSize=n,this.graphicsSize=o,this.dv=new DataView(e.buffer,e.byteOffset,e.byteLength)}check(e,n){if(e<0||e+n>this.data.length)throw new I(`Read out of range at 0x${e.toString(16)} (+${n}); file may be malformed.`)}u8(e){return this.check(e,1),this.data[e]}u16(e){return this.check(e,2),this.dv.getUint16(e,!0)}u32(e){return this.check(e,4),this.dv.getUint32(e,!0)}f32(e){return this.check(e,4),this.dv.getFloat32(e,!0)}ptrAt(e){let n=this.u32(e),o=this.u32(e+4);if(n===0&&o===0)return-1;if(o!==0)throw new I(`Invalid pointer 0x${o.toString(16)}${n.toString(16).padStart(8,"0")} at 0x${e.toString(16)}.`);return this.resolve(n)}resolve(e){let n=e>>>28,o=e&268435455;if(n===5){if(o>=this.systemSize)throw new I(`System pointer 0x${e.toString(16)} is outside the system segment.`);return o}if(n===6){if(o>=this.graphicsSize)throw new I(`Graphics pointer 0x${e.toString(16)} is outside the graphics segment.`);return this.systemSize+o}throw new I(`Invalid pointer 0x${e.toString(16)}.`)}bytes(e,n){return this.check(e,n),this.data.subarray(e,e+n)}string(e){if(e<0)return null;let n=e;for(;n<this.data.length&&this.data[n]!==0;)n++;let o="";for(let s=e;s<n;s++)o+=String.fromCharCode(this.data[s]);return o}listAt(e){return{ptr:this.ptrAt(e),count:this.u16(e+8),capacity:this.u16(e+10)}}u32Array(e,n){let o=new Array(n);for(let s=0;s<n;s++)o[s]=this.u32(e+s*4);return o}ptrArray(e,n){let o=new Array(n);for(let s=0;s<n;s++)o[s]=this.ptrAt(e+s*8);return o}};function Qt(t){let e=t.toLowerCase(),n=0;for(let o=0;o<e.length;o++)n=n+e.charCodeAt(o)>>>0,n=n+(n<<10)>>>0,n=(n^n>>>6)>>>0;return n=n+(n<<3)>>>0,n=(n^n>>>11)>>>0,n=n+(n<<15)>>>0,n}var te=new Uint8Array([128,0,1,1,0,0,1,1,0,0,1,1,0,0,1,129,128,0,0,1,0,0,0,1,0,0,0,1,0,0,0,129,128,1,1,1,0,1,1,1,0,1,1,1,0,1,1,129,128,0,0,1,0,0,1,1,0,0,1,1,0,1,1,129,128,0,0,0,0,0,0,1,0,0,0,1,0,0,1,129,128,0,1,1,0,1,1,1,0,1,1,1,1,1,1,129,128,0,0,1,0,0,1,1,0,1,1,1,1,1,1,129,128,0,0,0,0,0,0,1,0,0,1,1,0,1,1,129,128,0,0,0,0,0,0,0,0,0,0,1,0,0,1,129,128,0,1,1,0,1,1,1,1,1,1,1,1,1,1,129,128,0,0,0,0,0,0,1,0,1,1,1,1,1,1,129,128,0,0,0,0,0,0,0,0,0,0,1,0,1,1,129,128,0,0,1,0,1,1,1,1,1,1,1,1,1,1,129,128,0,0,0,0,0,0,0,1,1,1,1,1,1,1,129,128,0,0,0,1,1,1,1,1,1,1,1,1,1,1,129,128,0,0,0,0,0,0,0,0,0,0,0,1,1,1,129,128,0,0,0,1,0,0,0,1,1,1,0,1,1,1,129,128,1,129,1,0,0,0,1,0,0,0,0,0,0,0,0,128,0,0,0,0,0,0,0,129,0,0,0,1,1,1,0,128,1,129,1,0,0,1,1,0,0,0,1,0,0,0,0,128,0,129,1,0,0,0,1,0,0,0,0,0,0,0,0,128,0,0,0,1,0,0,0,129,1,0,0,1,1,1,0,128,0,0,0,0,0,0,0,129,0,0,0,1,1,0,0,128,1,1,1,0,0,1,1,0,0,1,1,0,0,0,129,128,0,129,1,0,0,0,1,0,0,0,1,0,0,0,0,128,0,0,0,1,0,0,0,129,0,0,0,1,1,0,0,128,1,129,0,0,1,1,0,0,1,1,0,0,1,1,0,128,0,129,1,0,1,1,0,0,1,1,0,1,1,0,0,128,0,0,1,0,1,1,1,129,1,1,0,1,0,0,0,128,0,0,0,1,1,1,1,129,1,1,1,0,0,0,0,128,1,129,1,0,0,0,1,1,0,0,0,1,1,1,0,128,0,129,1,1,0,0,1,1,0,0,1,1,1,0,0,128,1,0,1,0,1,0,1,0,1,0,1,0,1,0,129,128,0,0,0,1,1,1,1,0,0,0,0,1,1,1,129,128,1,0,1,1,0,129,0,0,1,0,1,1,0,1,0,128,0,1,1,0,0,1,1,129,1,0,0,1,1,0,0,128,0,129,1,1,1,0,0,0,0,1,1,1,1,0,0,128,1,0,1,0,1,0,1,129,0,1,0,1,0,1,0,128,1,1,0,1,0,0,1,0,1,1,0,1,0,0,129,128,1,0,1,1,0,1,0,1,0,1,0,0,1,0,129,128,1,129,1,0,0,1,1,1,1,0,0,1,1,1,0,128,0,0,1,0,0,1,1,129,1,0,0,1,0,0,0,128,0,129,1,0,0,1,0,0,1,0,0,1,1,0,0,128,0,129,1,1,0,1,1,1,1,0,1,1,1,0,0,128,1,129,0,1,0,0,1,1,0,0,1,0,1,1,0,128,0,1,1,1,1,0,0,1,1,0,0,0,0,1,129,128,1,1,0,0,1,1,0,1,0,0,1,1,0,0,129,128,0,0,0,0,1,129,0,0,1,1,0,0,0,0,0,128,1,0,0,1,1,129,0,0,1,0,0,0,0,0,0,128,0,129,0,0,1,1,1,0,0,1,0,0,0,0,0,128,0,0,0,0,0,129,0,0,1,1,1,0,0,1,0,128,0,0,0,0,1,0,0,129,1,1,0,0,1,0,0,128,1,1,0,1,1,0,0,1,0,0,1,0,0,1,129,128,0,1,1,0,1,1,0,1,1,0,0,1,0,0,129,128,1,129,0,0,0,1,1,1,0,0,1,1,1,0,0,128,0,129,1,1,0,0,1,1,1,0,0,0,1,1,0,128,1,1,0,1,1,0,0,1,1,0,0,1,0,0,129,128,1,1,0,0,0,1,1,0,0,1,1,1,0,0,129,128,1,1,1,1,1,1,0,1,0,0,0,0,0,0,129,128,0,0,1,1,0,0,0,1,1,1,0,0,1,1,129,128,0,0,0,1,1,1,1,0,0,1,1,0,0,1,129,128,0,129,1,0,0,1,1,1,1,1,1,0,0,0,0,128,0,129,0,0,0,1,0,1,1,1,0,1,1,1,0,128,1,0,0,0,1,0,0,0,1,1,1,0,1,1,129]),ee=new Uint8Array([128,0,1,129,0,0,1,1,0,2,2,1,2,2,2,130,128,0,0,129,0,0,1,1,130,2,1,1,2,2,2,1,128,0,0,0,2,0,0,1,130,2,1,1,2,2,1,129,128,2,2,130,0,0,2,2,0,0,1,1,0,1,1,129,128,0,0,0,0,0,0,0,129,1,2,2,1,1,2,130,128,0,1,129,0,0,1,1,0,0,2,2,0,0,2,130,128,0,2,130,0,0,2,2,1,1,1,1,1,1,1,129,128,0,1,1,0,0,1,1,130,2,1,1,2,2,1,129,128,0,0,0,0,0,0,0,129,1,1,1,2,2,2,130,128,0,0,0,1,1,1,1,129,1,1,1,2,2,2,130,128,0,0,0,1,1,129,1,2,2,2,2,2,2,2,130,128,0,1,2,0,0,129,2,0,0,1,2,0,0,1,130,128,1,1,2,0,1,129,2,0,1,1,2,0,1,1,130,128,1,2,2,0,129,2,2,0,1,2,2,0,1,2,130,128,0,1,129,0,1,1,2,1,1,2,2,1,2,2,130,128,0,1,129,2,0,0,1,130,2,0,0,2,2,2,0,128,0,0,129,0,0,1,1,0,1,1,2,1,1,2,130,128,1,1,129,0,0,1,1,130,0,0,1,2,2,0,0,128,0,0,0,1,1,2,2,129,1,2,2,1,1,2,130,128,0,2,130,0,0,2,2,0,0,2,2,1,1,1,129,128,1,1,129,0,1,1,1,0,2,2,2,0,2,2,130,128,0,0,129,0,0,0,1,130,2,2,1,2,2,2,1,128,0,0,0,0,0,129,1,0,1,2,2,0,1,2,130,128,0,0,0,1,1,0,0,130,2,129,0,2,2,1,0,128,1,2,130,0,129,2,2,0,0,1,1,0,0,0,0,128,0,1,2,0,0,1,2,129,1,2,2,2,2,2,130,128,1,1,0,1,2,130,1,129,2,2,1,0,1,1,0,128,0,0,0,0,1,129,0,1,2,130,1,1,2,2,1,128,0,2,2,1,1,0,2,129,1,0,2,0,0,2,130,128,1,1,0,0,129,1,0,2,0,0,2,2,2,2,130,128,0,1,1,0,1,2,2,0,1,130,2,0,0,1,129,128,0,0,0,2,0,0,0,130,2,1,1,2,2,2,129,128,0,0,0,0,0,0,2,129,1,2,2,1,2,2,130,128,2,2,130,0,0,2,2,0,0,1,2,0,0,1,129,128,0,1,129,0,0,1,2,0,0,2,2,0,2,2,130,128,1,2,0,0,129,2,0,0,1,130,0,0,1,2,0,128,0,0,0,1,1,129,1,2,2,130,2,0,0,0,0,128,1,2,0,1,2,0,1,130,0,129,2,0,1,2,0,128,1,2,0,2,0,1,2,129,130,0,1,0,1,2,0,128,0,1,1,2,2,0,0,1,1,130,2,0,0,1,129,128,0,1,1,1,1,130,2,2,2,0,0,0,0,1,129,128,1,0,129,0,1,0,1,2,2,2,2,2,2,2,130,128,0,0,0,0,0,0,0,130,1,2,1,2,1,2,129,128,0,2,2,1,129,2,2,0,0,2,2,1,1,2,130,128,0,2,130,0,0,1,1,0,0,2,2,0,0,1,129,128,2,2,0,1,2,130,1,0,2,2,0,1,2,2,129,128,1,0,1,2,2,130,2,2,2,2,2,0,1,0,129,128,0,0,0,2,1,2,1,130,1,2,1,2,1,2,129,128,1,0,129,0,1,0,1,0,1,0,1,2,2,2,130,128,2,2,130,0,1,1,1,0,2,2,2,0,1,1,129,128,0,0,2,1,129,1,2,0,0,0,2,1,1,1,130,128,0,0,0,2,129,1,2,2,1,1,2,2,1,1,130,128,2,2,2,0,129,1,1,0,1,1,1,0,2,2,130,128,0,0,2,1,1,1,2,129,1,1,2,0,0,0,130,128,1,1,0,0,129,1,0,0,1,1,0,2,2,2,130,128,0,0,0,0,0,0,0,2,1,129,2,2,1,1,130,128,1,1,0,0,129,1,0,2,2,2,2,2,2,2,130,128,0,2,2,0,0,1,1,0,0,129,1,0,0,2,130,128,0,2,2,1,1,2,2,129,1,2,2,0,0,2,130,128,0,0,0,0,0,0,0,0,0,0,0,2,129,1,130,128,0,0,130,0,0,0,1,0,0,0,2,0,0,0,129,128,2,2,2,1,2,2,2,0,2,2,2,129,2,2,130,128,1,0,129,2,2,2,2,2,2,2,2,2,2,2,130,128,1,1,129,2,0,1,1,130,2,0,1,2,2,2,0]);var k={A8R8G8B8:21,X8R8G8B8:22,A1R5G5B5:25,A8:28,A8B8G8R8:32,L8:50,DXT1:827611204,DXT3:861165636,DXT5:894720068,ATI1:826889281,ATI2:843666497,BC7:540492610},He=Object.fromEntries(Object.entries(k).map(([t,e])=>[e,t]));function gt(t){return He[t]||`unknown (0x${(t>>>0).toString(16)})`}function Rt(t){switch(t){case k.DXT1:case k.ATI1:return{block:8};case k.DXT3:case k.DXT5:case k.ATI2:case k.BC7:return{block:16};case k.A8R8G8B8:case k.X8R8G8B8:case k.A8B8G8R8:return{bpp:4};case k.A1R5G5B5:return{bpp:2};case k.A8:case k.L8:return{bpp:1};default:return null}}function St(t){return Rt(t)!==null}function re(t,e,n){let o=Rt(t);return o?o.block?Math.max(1,e+3>>2)*Math.max(1,n+3>>2)*o.block:e*n*o.bpp:0}function It(t,e,n,o,s,r){let a=t[e]|t[e+1]<<8,l=t[e+2]|t[e+3]<<8,i=a>>11&31,c=a>>5&63,h=a&31,p=l>>11&31,u=l>>5&63,x=l&31,f=new Uint8Array(16);f[0]=i*527+23>>6,f[1]=c*259+33>>6,f[2]=h*527+23>>6,f[3]=255,f[4]=p*527+23>>6,f[5]=u*259+33>>6,f[6]=x*527+23>>6,f[7]=255,a>l||r?(f[8]=(2*i+p)*351+61>>7,f[9]=(2*c+u)*2763+1039>>11,f[10]=(2*h+x)*351+61>>7,f[11]=255,f[12]=(i+p*2)*351+61>>7,f[13]=(c+u*2)*2763+1039>>11,f[14]=(h+x*2)*351+61>>7,f[15]=255):(f[8]=(i+p)*1053+125>>8,f[9]=(c+u)*4145+1019>>11,f[10]=(h+x)*1053+125>>8,f[11]=255);let A=(t[e+4]|t[e+5]<<8|t[e+6]<<16|t[e+7]<<24)>>>0;for(let S=0;S<4;S++)for(let v=0;v<4;v++){let g=(A&3)*4,R=o+S*s+v*4;n[R]=f[g],n[R+1]=f[g+1],n[R+2]=f[g+2],n[R+3]=f[g+3],A>>>=2}}function Ne(t,e,n,o,s){for(let r=0;r<4;r++){let a=t[e+r*2]|t[e+r*2+1]<<8;for(let l=0;l<4;l++)n[o+r*s+l*4]=(a>>4*l&15)*17}}function wt(t,e,n,o,s,r){let a=new Uint8Array(8);a[0]=t[e],a[1]=t[e+1],a[0]>a[1]?(a[2]=(6*a[0]+a[1])/7|0,a[3]=(5*a[0]+2*a[1])/7|0,a[4]=(4*a[0]+3*a[1])/7|0,a[5]=(3*a[0]+4*a[1])/7|0,a[6]=(2*a[0]+5*a[1])/7|0,a[7]=(a[0]+6*a[1])/7|0):(a[2]=(4*a[0]+a[1])/5|0,a[3]=(3*a[0]+2*a[1])/5|0,a[4]=(2*a[0]+3*a[1])/5|0,a[5]=(a[0]+4*a[1])/5|0,a[6]=0,a[7]=255);let l=t[e+2]|t[e+3]<<8|t[e+4]<<16,i=t[e+5]|t[e+6]<<8|t[e+7]<<16;for(let c=0;c<16;c++){let h=c>>2,p=c&3,u;c<8?(u=l&7,l>>=3):(u=i&7,i>>=3),n[o+h*s+p*r]=a[u]}}function Ue(t,e,n,o,s){It(t,e,n,o,s,!1)}function Ge(t,e,n,o,s){It(t,e+8,n,o,s,!0),Ne(t,e,n,o+3,s)}function Fe(t,e,n,o,s){It(t,e+8,n,o,s,!0),wt(t,e,n,o+3,s,4)}function je(t,e,n,o,s){wt(t,e,n,o,s,1)}function Ve(t,e,n,o,s){wt(t,e,n,o,s,2),wt(t,e+8,n,o+1,s,2)}var ne=[4,6,5,7,5,7,7,5],bt=[0,0,0,0,6,8,7,5],oe=[0,21,43,64],se=[0,9,18,27,37,46,55,64],ze=[0,4,9,13,17,21,26,30,34,38,43,47,51,55,60,64],ae=203,P=(t,e,n,o)=>t*(64-n[o])+e*n[o]+32>>6;function Ye(t,e,n,o,s){let r=[(t[e]|t[e+1]<<8|t[e+2]<<16|t[e+3]<<24)>>>0,(t[e+4]|t[e+5]<<8|t[e+6]<<16|t[e+7]<<24)>>>0,(t[e+8]|t[e+9]<<8|t[e+10]<<16|t[e+11]<<24)>>>0,(t[e+12]|t[e+13]<<8|t[e+14]<<16|t[e+15]<<24)>>>0,0],a=0,l=m=>{if(m===0)return 0;let E=a>>>5,y=a&31,C=r[E]>>>y;return y+m>32&&(C|=r[E+1]<<32-y),a+=m,C&(1<<m)-1},i=0;for(;i<8&&l(1)===0;)i++;if(i>=8){for(let m=0;m<4;m++)n.fill(0,o+m*s,o+m*s+16);return}let c=0,h=1,p=0,u=0;(i===0||i===1||i===2||i===3||i===7)&&(h=i===0||i===2?3:2,c=l(i===0?4:6));let x=h*2;(i===4||i===5)&&(p=l(2),i===4&&(u=l(1)));let f=[];for(let m=0;m<x;m++)f.push([0,0,0,0]);for(let m=0;m<3;m++)for(let E=0;E<x;E++)f[E][m]=l(ne[i]);if(bt[i]>0)for(let m=0;m<x;m++)f[m][3]=l(bt[i]);if(i===0||i===1||i===3||i===6||i===7){for(let m=0;m<x;m++)for(let E=0;E<4;E++)f[m][E]<<=1;if(i===1){let m=l(1),E=l(1);for(let y=0;y<3;y++)f[0][y]|=m,f[1][y]|=m,f[2][y]|=E,f[3][y]|=E}else if(ae&1<<i)for(let m=0;m<x;m++){let E=l(1);for(let y=0;y<4;y++)f[m][y]|=E}}let A=ae>>i&1;for(let m=0;m<x;m++){let E=ne[i]+A;for(let y=0;y<3;y++)f[m][y]=f[m][y]<<8-E&65535,f[m][y]|=f[m][y]>>E;E=bt[i]+A,f[m][3]=f[m][3]<<8-E&65535,f[m][3]|=f[m][3]>>E}if(!bt[i])for(let m=0;m<x;m++)f[m][3]=255;let S=i===0||i===1?3:i===6?4:2,v=i===4?3:i===5?2:0,g=S===2?oe:S===3?se:ze,R=v===2?oe:se,T=h===2?te:ee,M=m=>h===1?m===0?128:0:T[c*16+m],_=new Uint8Array(16);for(let m=0;m<16;m++){let E=S;M(m)&128&&E--,_[m]=l(E)}for(let m=0;m<16;m++){let E=M(m)&3,y=f[E*2],C=f[E*2+1],N=_[m],G,F,U,L;if(!v)G=P(y[0],C[0],g,N),F=P(y[1],C[1],g,N),U=P(y[2],C[2],g,N),L=P(y[3],C[3],g,N);else{let mt=l(m?v:v-1);u?(G=P(y[0],C[0],R,mt),F=P(y[1],C[1],R,mt),U=P(y[2],C[2],R,mt),L=P(y[3],C[3],g,N)):(G=P(y[0],C[0],g,N),F=P(y[1],C[1],g,N),U=P(y[2],C[2],g,N),L=P(y[3],C[3],R,mt))}p===1?[L,G]=[G,L]:p===2?[L,F]=[F,L]:p===3&&([L,U]=[U,L]);let O=o+(m>>2)*s+(m&3)*4;n[O]=G,n[O+1]=F,n[O+2]=U,n[O+3]=L}}function ie(t,e,n,o,s=0){let r=Rt(t);if(!r)throw new Error(`Unsupported texture format ${gt(t)}`);let a=new Uint8Array(e*n*4);if(r.block){let c=Math.max(1,e+3>>2),h=Math.max(1,n+3>>2),p=c*4,u=h*4,x=t===k.ATI1?1:t===k.ATI2?2:4,f=new Uint8Array(p*u*x),A=p*x,S={[k.DXT1]:Ue,[k.DXT3]:Ge,[k.DXT5]:Fe,[k.ATI1]:je,[k.ATI2]:Ve,[k.BC7]:Ye}[t],v=c*h*r.block;if(o.length<v)throw new Error(`Texture data truncated: need ${v} bytes, have ${o.length}`);let g=0;for(let R=0;R<h;R++)for(let T=0;T<c;T++)S(o,g,f,R*4*A+T*4*x,A),g+=r.block;for(let R=0;R<n;R++)for(let T=0;T<e;T++){let M=R*A+T*x,_=(R*e+T)*4;if(x===4)a[_]=f[M],a[_+1]=f[M+1],a[_+2]=f[M+2],a[_+3]=f[M+3];else if(x===1)a[_]=a[_+1]=a[_+2]=f[M],a[_+3]=255;else{let m=f[M]/127.5-1,E=f[M+1]/127.5-1,y=Math.sqrt(Math.max(0,1-m*m-E*E));a[_]=f[M],a[_+1]=f[M+1],a[_+2]=Math.round((y+1)*127.5),a[_+3]=255}}return a}let l=e*r.bpp,i=s>=l?s:l;if(o.length<i*(n-1)+l)throw new Error(`Texture data truncated: need ${i*n} bytes, have ${o.length}`);for(let c=0;c<n;c++)for(let h=0;h<e;h++){let p=c*i+h*r.bpp,u=(c*e+h)*4;switch(t){case k.A8R8G8B8:a[u]=o[p+2],a[u+1]=o[p+1],a[u+2]=o[p],a[u+3]=o[p+3];break;case k.X8R8G8B8:a[u]=o[p+2],a[u+1]=o[p+1],a[u+2]=o[p],a[u+3]=255;break;case k.A8B8G8R8:a[u]=o[p],a[u+1]=o[p+1],a[u+2]=o[p+2],a[u+3]=o[p+3];break;case k.A1R5G5B5:{let x=o[p]|o[p+1]<<8;a[u]=(x>>10&31)*255/31|0,a[u+1]=(x>>5&31)*255/31|0,a[u+2]=(x&31)*255/31|0,a[u+3]=x&32768?255:0;break}case k.A8:a[u]=a[u+1]=a[u+2]=255,a[u+3]=o[p];break;case k.L8:a[u]=a[u+1]=a[u+2]=o[p],a[u+3]=255;break}}return a}var Xe=5;function Bt(t,e){let n=t.listAt(e+32),o=t.listAt(e+48),s=n.ptr>=0?t.u32Array(n.ptr,n.count):[];return(o.ptr>=0?t.ptrArray(o.ptr,o.count):[]).map((a,l)=>a>=0?{...We(t,a),hash:s[l]}:null).filter(Boolean)}function We(t,e){let n=t.string(t.ptrAt(e+40)),o=t.u16(e+80),s=t.u16(e+82),r=t.u16(e+84),a=t.u16(e+86),l=t.u32(e+88),i=t.u8(e+93),c=t.ptrAt(e+112),h=t.u32(e+64)&31;return{name:n,width:o,height:s,depth:r,stride:a,format:l,formatName:gt(l),levels:i,usage:h,supported:St(l)&&c>=0&&o>0&&s>0,decode(){if(!St(l))throw new I(`Texture format ${gt(l)} is not supported.`);if(c<0)throw new I("Texture has no pixel data.");let p=re(l,o,s),u=t.data.length-c,x=t.data.subarray(c,c+Math.min(u,Math.max(p,a*s)));return ie(l,o,s,x,a)}}}async function le(t){let e=await xt(t);if(e.version===Xe)throw new I("This .ytd is in the GTA V Enhanced (gen9) format, which FiveM does not use. Not supported.");let n=Bt(e.reader,0);return{version:e.version,textures:n}}var qe=159,Ke=Qt("diffusesampler"),Je=0,Ze=3,Qe=4,tn=6,en=[0,4,4,8,0,8,12,16,4,4,4,0,0,0,0,0],nn=["high","med","low","vlow"];function Ct(t){let e=t&32768?-1:1,n=t>>10&31,o=t&1023;return n===0?e*Math.pow(2,-14)*(o/1024):n===31?o?NaN:e*(1/0):e*Math.pow(2,n-15)*(1+o/1024)}function vt(t,e,n){switch(n){case 1:return[Ct(t.u16(e)),Ct(t.u16(e+2))];case 2:return[t.f32(e)];case 3:return[0,2,4,6].map(o=>Ct(t.u16(e+o)));case 5:return[t.f32(e),t.f32(e+4)];case 6:return[t.f32(e),t.f32(e+4),t.f32(e+8)];case 7:return[t.f32(e),t.f32(e+4),t.f32(e+8),t.f32(e+12)];case 8:case 9:return[t.u8(e),t.u8(e+1),t.u8(e+2),t.u8(e+3)];case 10:return[0,1,2,3].map(o=>{let s=t.u8(e+o);return Math.max(-1,(s>127?s-256:s)/127)});default:return null}}function on(t,e){let n=t.u32(e),o=t.u16(e+4),s=t.u32(e+8),r=t.u32(e+12),a=c=>c<8?s>>>c*4&15:r>>>(c-8)*4&15,l={},i=0;for(let c=0;c<16;c++)if(n>>>c&1){let h=a(c);l[c]={type:h,offset:i},i+=en[h]}return{flags:n,stride:o,computedStride:i,components:l}}function sn(t,e){let n=t.u16(e+8),o=t.ptrAt(e+16),s=t.u32(e+24),r=t.ptrAt(e+32),a=t.ptrAt(e+48);if(a<0)throw new I("Vertex buffer has no vertex declaration.");let l=on(t,a),i=o>=0?o:r;if(i<0)throw new I("Vertex buffer has no vertex data.");let c=l.components[Je];if(!c)throw new I("Vertex declaration has no position.");let h=l.components[Ze],p=l.components[tn],u=l.components[Qe],x=new Float32Array(s*3),f=h?new Float32Array(s*3):null,A=p?new Float32Array(s*2):null,S=u&&u.type===9?new Float32Array(s*4):null;t.check(i,n*s);for(let v=0;v<s;v++){let g=i+v*n,R=vt(t,g+c.offset,c.type);if(x[v*3]=R[0],x[v*3+1]=R[1],x[v*3+2]=R[2],f){let T=vt(t,g+h.offset,h.type);if(T&&T.length>=3){let M=h.type===9?.00784313725490196:1,_=h.type===9?-1:0;f[v*3]=T[0]*M+_,f[v*3+1]=T[1]*M+_,f[v*3+2]=T[2]*M+_}}if(A){let T=vt(t,g+p.offset,p.type);T&&(A[v*2]=T[0],A[v*2+1]=T[1])}if(S){let T=vt(t,g+u.offset,u.type);S[v*4]=T[0]/255,S[v*4+1]=T[1]/255,S[v*4+2]=T[2]/255,S[v*4+3]=T[3]/255}}return{count:s,stride:n,decl:l,positions:x,normals:f,uvs:A,colors:S}}function an(t,e){let n=t.u32(e+8),o=t.ptrAt(e+16);if(o<0)throw new I("Index buffer has no data.");t.check(o,n*2);let s=new Uint16Array(n);for(let r=0;r<n;r++)s[r]=t.u16(o+r*2);return s}function rn(t,e){let n=t.ptrAt(e+24),o=t.ptrAt(e+56);if(n<0||o<0)throw new I("Geometry is missing its vertex or index buffer.");let s=sn(t,n),r=an(t,o);for(let a=0;a<r.length;a++)if(r[a]>=s.count)throw new I(`Index ${r[a]} is past the end of the vertex buffer (${s.count}).`);return{...s,indices:r}}function ln(t,e){let n=t.ptrAt(e+8),o=t.u16(e+16),s=t.ptrAt(e+32),r=t.u32(e+40),a=n>=0?t.ptrArray(n,o):[],l=[];return a.forEach((i,c)=>{if(i<0)return;let h=s>=0?t.u16(s+c*2):0;l.push({...rn(t,i),shaderIndex:h})}),{boneIndex:r>>>24&255,geometries:l}}function cn(t,e){if(e<0)return null;let{ptr:n,count:o}=t.listAt(e);return n<0||o===0?null:t.ptrArray(n,o).filter(s=>s>=0).map(s=>ln(t,s))}function dn(t,e){let n=t.ptrAt(e),o=t.u32(e+8),s=t.u8(e+16),r=t.u32(e+24),a=[];if(n>=0&&s>0){let i=0,c=[];for(let p=0;p<s;p++){let u=n+p*16,x=t.u8(u);c.push({type:x,dataPtr:t.ptrAt(u+8)}),i+=16*x}let h=n+s*16+i;c.forEach((p,u)=>{if(p.type!==0)return;let x=t.u32(h+u*4),f=p.dataPtr>=0?t.string(t.ptrAt(p.dataPtr+40)):null;a.push({hash:x,name:f,isDiffuse:x===Ke})})}let l=a.find(i=>i.isDiffuse&&i.name)||null;return{nameHash:o,fileHash:r,textures:a,diffuseName:l?l.name:null}}function un(t,e){let n=t.ptrAt(e+8),o=t.ptrAt(e+16),s=t.u16(e+24),r=o>=0?t.ptrArray(o,s).map(l=>l>=0?dn(t,l):null):[],a=n>=0?Bt(t,n):[];return{shaders:r,embeddedTextures:a}}function fn(t,e){let n=t.ptrAt(e+16),o=[t.f32(e+48),t.f32(e+52),t.f32(e+56)],s=[t.f32(e+64),t.f32(e+68),t.f32(e+72)],r={};nn.forEach((i,c)=>{let h=cn(t,t.ptrAt(e+80+c*8));h&&(r[i]=h)});let a=null;try{a=t.string(t.ptrAt(e+168))}catch{}let l=n>=0?un(t,n):{shaders:[],embeddedTextures:[]};return{name:a,bboxMin:o,bboxMax:s,lods:r,...l}}function pn(t,e){let n=t.listAt(e+32),o=t.listAt(e+48),s=n.ptr>=0?t.u32Array(n.ptr,n.count):[];return(o.ptr>=0?t.ptrArray(o.ptr,o.count):[]).map((a,l)=>a>=0?{hash:s[l],...fn(t,a)}:null).filter(Boolean)}async function ce(t){let e=await xt(t);if(e.version===qe)throw new I("This .ydd is in the GTA V Enhanced (gen9) format, which FiveM does not use. Not supported.");let n=pn(e.reader,0);return{version:e.version,drawables:n}}function de(t,e="high"){let n=t.lods[e]||[],o=0,s=0,r=0;for(let a of n)for(let l of a.geometries)r++,o+=l.count,s+=Math.floor(l.indices.length/3);return{models:n.length,geometries:r,vertices:o,triangles:s}}var ue=[{key:"head",id:0,label:"Head"},{key:"berd",id:1,label:"Masks"},{key:"hair",id:2,label:"Hair"},{key:"uppr",id:3,label:"Torso / arms"},{key:"lowr",id:4,label:"Legs"},{key:"hand",id:5,label:"Bags"},{key:"feet",id:6,label:"Shoes"},{key:"teef",id:7,label:"Accessories"},{key:"accs",id:8,label:"Undershirts"},{key:"task",id:9,label:"Body armour"},{key:"decl",id:10,label:"Decals"},{key:"jbib",id:11,label:"Tops"}],hn=Object.fromEntries(ue.map(t=>[t.key,t])),mn={head:"Hats",eyes:"Glasses",ears:"Ears",lwrist:"Watches",rwrist:"Bracelets"},fe=ue.map(t=>t.key).join("|"),xn=new RegExp(`^(${fe})_(\\d{3})_([a-z])(?:_(\\d+))?$`),bn=new RegExp(`^(${fe})_diff_(\\d{3})_([a-z])(?:_([a-z]+))?$`),wn=/^p_([a-z]+)_(\d{3})(?:_(\d+))?$/,gn=/^p_([a-z]+)_diff_(\d{3})_([a-z])(?:_([a-z]+))?$/,vn={uni:"universal",whi:"white",bla:"black",chi:"chinese",lat:"latino",ara:"arab",kor:"korean",pak:"pakistani"};function yn(t){let e=t.replace(/\\/g,"/").split("/"),n=e.pop(),o=n.lastIndexOf("."),s=o>=0?n.slice(o+1).toLowerCase():"",r=o>=0?n.slice(0,o):n,a=r.lastIndexOf("^");return{folder:e.join("/"),file:n,ext:s,prefix:a>=0?r.slice(0,a):"",name:(a>=0?r.slice(a+1):r).toLowerCase()}}function En(t){let e=yn(t);if(e.ext!=="ydd"&&e.ext!=="ytd")return null;let n=e.prefix||e.folder||"(root)",o;return e.ext==="ydd"?(o=xn.exec(e.name))?{...e,collection:n,kind:"drawable",slot:o[1],isProp:!1,index:+o[2],variant:o[3],alt:o[4]?+o[4]:0}:(o=wn.exec(e.name))?{...e,collection:n,kind:"drawable",slot:`p_${o[1]}`,isProp:!0,index:+o[2],variant:"",alt:o[3]?+o[3]:0}:{...e,collection:n,kind:"drawable",slot:null,isProp:!1,index:-1}:(o=bn.exec(e.name))?{...e,collection:n,kind:"texture",slot:o[1],isProp:!1,index:+o[2],letter:o[3],race:o[4]||""}:(o=gn.exec(e.name))?{...e,collection:n,kind:"texture",slot:`p_${o[1]}`,isProp:!0,index:+o[2],letter:o[3],race:o[4]||""}:{...e,collection:n,kind:"texture",slot:null,isProp:!1,index:-1}}function Lt(t){if(!t)return{key:"other",label:"Other models",order:1e3};if(t.startsWith("p_")){let n=t.slice(2);return{key:t,label:`${mn[n]||n} (prop)`,order:100+n.charCodeAt(0)}}let e=hn[t];return{key:t,label:e.label,id:e.id,order:e.id}}function pe(t){let e=[],n=[];for(let i of t){let c=En(i.path);c&&(c.kind==="drawable"?e:n).push({...i,info:c})}let o=i=>`${i.collection}|${i.slot}|${i.index}`,s=new Map;for(let i of n){if(!i.info.slot)continue;let c=o(i.info);s.has(c)||s.set(c,[]),s.get(c).push(i)}for(let i of s.values())i.sort((c,h)=>(c.info.letter+c.info.race).localeCompare(h.info.letter+h.info.race));let r=new Set,a=new Map;for(let i of e){let c=i.info,h=c.slot?s.get(o(c))||[]:[];h.length===0&&c.slot&&(h=n.filter(x=>x.info.slot===c.slot&&x.info.index===c.index&&x.info.folder===c.folder)),h.forEach(x=>r.add(x)),a.has(c.collection)||a.set(c.collection,new Map);let p=a.get(c.collection),u=Lt(c.slot);p.has(u.key)||p.set(u.key,{...u,items:[]}),p.get(u.key).items.push({id:i.path,name:i.info.name,drawable:i,textures:h})}return{collections:[...a.entries()].sort(([i],[c])=>i.localeCompare(c)).map(([i,c])=>({name:i,slots:[...c.values()].sort((h,p)=>h.order-p.order||h.key.localeCompare(p.key)).map(h=>({...h,items:h.items.sort((p,u)=>p.name.localeCompare(u.name,void 0,{numeric:!0}))}))})),looseTextures:n.filter(i=>!r.has(i)),allTextures:n}}function he(t){if(!t.letter)return t.name;let e=t.race?` \xB7 ${vn[t.race]||t.race}`:"";return`${t.letter.toUpperCase()}${e}`}var tt=class{constructor(e){this.base=e,this.buf=new Uint8Array(65536),this.len=0,this.dv=new DataView(this.buf.buffer)}alloc(e,n=16){this.len=Math.ceil(this.len/n)*n;let o=this.len;if(this.len+=e,this.len>this.buf.length){let s=new Uint8Array(Math.max(this.len,this.buf.length*2));s.set(this.buf),this.buf=s,this.dv=new DataView(s.buffer)}return o}ptr(e){return this.base+e}u8(e,n){this.dv.setUint8(e,n)}u16(e,n){this.dv.setUint16(e,n,!0)}u32(e,n){this.dv.setUint32(e,n>>>0,!0)}f32(e,n){this.dv.setFloat32(e,n,!0)}p64(e,n){this.dv.setUint32(e,n>>>0,!0),this.dv.setUint32(e+4,0,!0)}bytes(e,n){this.buf.set(n,e)}str(e){let n=this.alloc(e.length+1);for(let o=0;o<e.length;o++)this.buf[n+o]=e.charCodeAt(o);return n}list(e,n,o){this.p64(e,n),this.u16(e+8,o),this.u16(e+10,o)}};function me(t,e){let n=Math.ceil(t/8192),o=0;for(;n>127;)o++,n=Math.ceil(t/(8192<<o));return((e&15)<<28|n<<17|o)>>>0}function xe(t){if(t===0)return 0;let e=0;for(;Math.ceil(t/(8192<<e))>127;)e++;return Math.ceil(t/(8192<<e))*(8192<<e)}async function Tn(t){let e=new Blob([t]).stream().pipeThrough(new CompressionStream("deflate-raw"));return new Uint8Array(await new Response(e).arrayBuffer())}async function we(t,e,n){let o=xe(t.len)||8192,s=xe(e.len),r=new Uint8Array(o+s);r.set(t.buf.subarray(0,t.len),0),r.set(e.buf.subarray(0,e.len),o);let a=await Tn(r),l=new Uint8Array(16+a.length),i=new DataView(l.buffer);return i.setUint32(0,927159122,!0),i.setUint32(4,n,!0),i.setUint32(8,me(o,n>>4),!0),i.setUint32(12,me(s,n&15),!0),l.set(a,16),l}function _n(t,e,{name:n,width:o,height:s,format:r,stride:a,levels:l=1,pixels:i}){let c=t.alloc(144);if(t.u32(c+4,1),t.p64(c+40,t.ptr(t.str(n))),t.u16(c+48,1),t.u16(c+80,o),t.u16(c+82,s),t.u16(c+84,1),t.u16(c+86,a),t.u32(c+88,r),t.u8(c+93,l),i){let h=e.alloc(i.length);e.bytes(h,i),t.p64(c+112,e.ptr(h))}return c}function $n(t,e,n,o){let s=o??t.alloc(64);t.u32(s+24,1);let r=t.alloc(n.length*4);n.forEach((l,i)=>t.u32(r+i*4,l.hash??i));let a=t.alloc(n.length*8);return n.forEach((l,i)=>t.p64(a+i*8,t.ptr(_n(t,e,l)))),t.list(s+32,t.ptr(r),n.length),t.list(s+48,t.ptr(a),n.length),s}async function et(t){let e=new tt(1342177280),n=new tt(1610612736);return e.alloc(64),$n(e,n,t,0),we(e,n,13)}function be(t){let e=new DataView(new ArrayBuffer(4));e.setFloat32(0,t);let n=e.getUint32(0),o=n>>>16&32768,s=(n>>>23&255)-127+15;return s<=0?o:s>=31?o|31744:o|s<<10|n>>>13&1023}var An={gtav1:{flags:73,lo:1436117398,hi:2002081109,stride:32,count:3},packed:{flags:89,lo:26845190,hi:50331648,stride:24,count:4}};function Mn(t,e,n,o){let s=An[o],r=n.positions.length/3,a=t.alloc(16);t.u32(a,s.flags),t.u16(a+4,s.stride),t.u8(a+7,s.count),t.u32(a+8,s.lo),t.u32(a+12,s.hi);let l=e.alloc(s.stride*r);for(let u=0;u<r;u++){let x=l+u*s.stride;e.f32(x,n.positions[u*3]),e.f32(x+4,n.positions[u*3+1]),e.f32(x+8,n.positions[u*3+2]);let f=[n.normals[u*3],n.normals[u*3+1],n.normals[u*3+2]],A=[n.uvs[u*2],n.uvs[u*2+1]];o==="packed"?(f.forEach((S,v)=>e.u8(x+12+v,Math.round(S*127)&255)),e.u8(x+15,0),e.u32(x+16,4294967295),e.u16(x+20,be(A[0])),e.u16(x+22,be(A[1]))):(e.f32(x+12,f[0]),e.f32(x+16,f[1]),e.f32(x+20,f[2]),e.f32(x+24,A[0]),e.f32(x+28,A[1]))}let i=t.alloc(128);t.u32(i+4,1),t.u16(i+8,s.stride),t.p64(i+16,e.ptr(l)),t.u32(i+24,r),t.p64(i+32,e.ptr(l)),t.p64(i+48,t.ptr(a));let c=e.alloc(n.indices.length*2);n.indices.forEach((u,x)=>e.u16(c+x*2,u));let h=t.alloc(96);t.u32(h+8,n.indices.length),t.p64(h+16,e.ptr(c));let p=t.alloc(152);return t.u32(p+4,1),t.p64(p+24,t.ptr(i)),t.p64(p+56,t.ptr(h)),t.u32(p+88,n.indices.length),t.u32(p+92,n.indices.length/3),t.u16(p+96,r),t.u16(p+98,3),t.u16(p+112,s.stride),p}function kn(t,e,n,o){let s=t.alloc(n.length*8);n.forEach((l,i)=>t.p64(s+i*8,t.ptr(Mn(t,e,l,o))));let r=t.alloc(n.length*2);n.forEach((l,i)=>t.u16(r+i*2,0));let a=t.alloc(48);return t.p64(a+8,t.ptr(s)),t.u16(a+16,n.length),t.u16(a+18,n.length),t.p64(a+32,t.ptr(r)),a}function Rn(t,e){let n=t.alloc(80);t.p64(n+40,t.ptr(t.str(e)));let o=t.alloc(2*16+16+2*4);t.u8(o,0),t.p64(o+8,t.ptr(n)),t.u8(o+16,1),t.p64(o+24,t.ptr(o+32)),t.f32(o+32,1),t.f32(o+36,1),t.f32(o+40,1),t.f32(o+44,1),t.u32(o+48,4059966321),t.u32(o+52,12345);let s=t.alloc(48);t.p64(s,t.ptr(o)),t.u8(s+16,2);let r=t.alloc(8);t.p64(r,t.ptr(s));let a=t.alloc(64);return t.p64(a+16,t.ptr(r)),t.u16(a+24,1),t.u16(a+26,1),a}async function yt({name:t,hash:e=0,diffuseName:n,geometries:o,layout:s="gtav1"}){let r=new tt(1342177280),a=new tt(1610612736),l=r.alloc(64),i=r.alloc(208),c=Rn(r,n),h=kn(r,a,o,s),p=r.alloc(8);r.p64(p,r.ptr(h));let u=r.alloc(16);r.list(u,r.ptr(p),1);let x=[1/0,1/0,1/0],f=[-1/0,-1/0,-1/0];for(let v of o)for(let g=0;g<v.positions.length;g++)x[g%3]=Math.min(x[g%3],v.positions[g]),f[g%3]=Math.max(f[g%3],v.positions[g]);r.p64(i+16,r.ptr(c)),x.forEach((v,g)=>r.f32(i+48+g*4,v)),f.forEach((v,g)=>r.f32(i+64+g*4,v)),r.p64(i+80,r.ptr(u)),r.p64(i+160,r.ptr(u)),r.p64(i+168,r.ptr(r.str(t)));let A=r.alloc(4);r.u32(A,e);let S=r.alloc(8);return r.p64(S,r.ptr(i)),r.u32(l+24,1),r.list(l+32,r.ptr(A),1),r.list(l+48,r.ptr(S),1),we(r,a,165)}var Sn="demo_mp_m_freemode_01";function nt(t,e,n,o,s,{segments:r=28,rings:a=10,u0:l=0,u1:i=1,v0:c=0,v1:h=1}={}){let p=t.positions.length/3,u=[n[0]-e[0],n[1]-e[1],n[2]-e[2]],x=Math.hypot(...u),f=u.map(M=>M/x),A=Math.abs(f[1])<.9?[0,1,0]:[1,0,0],S=[f[1]*A[2]-f[2]*A[1],f[2]*A[0]-f[0]*A[2],f[0]*A[1]-f[1]*A[0]],v=Math.hypot(...S),g=S.map(M=>M/v),R=[f[1]*g[2]-f[2]*g[1],f[2]*g[0]-f[0]*g[2],f[0]*g[1]-f[1]*g[0]];for(let M=0;M<=a;M++){let _=M/a,m=[e[0]+u[0]*_,e[1]+u[1]*_,e[2]+u[2]*_],E=o[0]+(s[0]-o[0])*_,y=o[1]+(s[1]-o[1])*_;for(let C=0;C<=r;C++){let N=C/r*Math.PI*2,G=Math.cos(N),F=Math.sin(N);for(let O=0;O<3;O++)t.positions.push(m[O]+g[O]*G*E+R[O]*F*y);let U=[0,1,2].map(O=>g[O]*G*y+R[O]*F*E),L=Math.hypot(...U)||1;t.normals.push(U[0]/L,U[1]/L,U[2]/L),t.uvs.push(l+(i-l)*(C/r),c+(h-c)*_)}}let T=r+1;for(let M=0;M<a;M++)for(let _=0;_<r;_++){let m=p+M*T+_;t.indices.push(m,m+1,m+T,m+1,m+T+1,m+T)}}function In(t,e,n,{segments:o=32,rings:s=10}={}){let r=t.positions.length/3;for(let l=0;l<=s;l++){let i=l/s*(Math.PI/2);for(let c=0;c<=o;c++){let h=c/o*Math.PI*2,p=[Math.cos(h)*Math.cos(i),Math.sin(h)*Math.cos(i),Math.sin(i)];t.positions.push(e[0]+p[0]*n,e[1]+p[1]*n*1.08,e[2]+p[2]*n*.82),t.normals.push(...p),t.uvs.push(c/o,.75-l/s*.75)}}let a=o+1;for(let l=0;l<s;l++)for(let i=0;i<o;i++){let c=r+l*a+i;t.indices.push(c,c+a,c+1,c+1,c+a,c+a+1)}}function Bn(t,e,n,o,s){let r=t.positions.length/3,a=16;for(let l=0;l<=a;l++){let i=Math.PI*(1.15+l/a*.7);for(let[c,h]of[[n,.8],[o,1]])t.positions.push(e[0]+Math.cos(i)*c,e[1]+Math.sin(i)*c*1.2,s-(c-n)*.15),t.normals.push(0,0,1),t.uvs.push(l/a,h)}for(let l=0;l<a;l++){let i=r+l*2;t.indices.push(i,i+1,i+2,i+1,i+3,i+2)}}var Dt=()=>({positions:[],normals:[],uvs:[],indices:[]});function Cn(t,e){let n=new Uint8Array(t*t*4);for(let o=0;o<t;o++)for(let s=0;s<t;s++){let[r,a,l]=e(s/t,o/t,s,o),i=((s^o)&1?6:-6)+((s*7+o*13)%5-2)*2,c=(o*t+s)*4;n[c]=Ot(l+i),n[c+1]=Ot(a+i),n[c+2]=Ot(r+i),n[c+3]=255}return n}var Ot=t=>Math.max(0,Math.min(255,Math.round(t))),X=t=>[parseInt(t.slice(1,3),16),parseInt(t.slice(3,5),16),parseInt(t.slice(5,7),16)],Ln=(t,e,n)=>t.map((o,s)=>o+(e[s]-o)*n),W={solid:t=>(e,n)=>{let o=Math.abs(e-.5)<.006||n>.965?.55:1;return X(t).map(s=>s*o)},stripe:(t,e)=>(n,o)=>Math.floor(o*14)%2?X(t):X(e),plaid:(t,e,n)=>(o,s)=>{let r=l=>Math.floor(l*10)%3===0?.5:0,a=Ln(X(t),X(e),r(o)+r(s));return(Math.abs(o*20%1-.5)<.04||Math.abs(s*20%1-.5)<.04)&&(a=X(n)),a},denim:t=>(e,n,o,s)=>{let r=(o+s)%4<2?1.08:.92,a=1+.18*Math.exp(-((n-.35)**2)/.01);return X(t).map(l=>l*r*a)}},Et=128;function st(t,e){return{name:t,width:Et,height:Et,format:21,stride:Et*4,pixels:Cn(Et,e)}}function On(){let t=Dt();return nt(t,[0,0,-.08],[0,0,.5],[.19,.13],[.21,.14],{u0:0,u1:1,v0:1,v1:.3}),nt(t,[.2,0,.44],[.42,0,.18],[.07,.07],[.055,.055],{segments:16,rings:6,u0:0,u1:.5,v0:.28,v1:0}),nt(t,[-.2,0,.44],[-.42,0,.18],[.07,.07],[.055,.055],{segments:16,rings:6,u0:.5,u1:1,v0:.28,v1:0}),t}function Dn(){let t=Dt();return nt(t,[0,0,-.12],[0,0,.04],[.18,.12],[.18,.12],{rings:3,v0:.12,v1:0}),nt(t,[.09,0,-.1],[.11,0,-.98],[.085,.085],[.06,.065],{segments:20,u0:0,u1:.5,v0:.14,v1:1}),nt(t,[-.09,0,-.1],[-.11,0,-.98],[.085,.085],[.06,.065],{segments:20,u0:.5,u1:1,v0:.14,v1:1}),t}function Pn(){let t=Dt();return In(t,[0,0,.66],.105),Bn(t,[0,0],.1,.17,.665),t}async function ge(){let t=[],e=(o,s)=>t.push({path:`${Sn}^${o}`,file:new Blob([s]),demo:!0});e("jbib_000_u.ydd",await yt({name:"jbib_000_u",diffuseName:"jbib_diff_000_a_uni",geometries:[On()]}));let n=[["a",W.solid("#2f5d8a")],["b",W.stripe("#f2efe6","#22313f")],["c",W.plaid("#8c2f2f","#2b2b2b","#e0c36a")]];for(let[o,s]of n)e(`jbib_diff_000_${o}_uni.ytd`,await et([st(`jbib_diff_000_${o}_uni`,s)]));return e("lowr_000_u.ydd",await yt({name:"lowr_000_u",diffuseName:"lowr_diff_000_a_uni",geometries:[Dn()],layout:"packed"})),e("lowr_diff_000_a_uni.ytd",await et([st("lowr_diff_000_a_uni",W.denim("#3a5578"))])),e("lowr_diff_000_b_uni.ytd",await et([st("lowr_diff_000_b_uni",W.solid("#6b6450"))])),e("p_head_000.ydd",await yt({name:"p_head_000",diffuseName:"p_head_diff_000_a",geometries:[Pn()]})),e("p_head_diff_000_a.ytd",await et([st("p_head_diff_000_a",W.solid("#c9a227"))])),e("p_head_diff_000_b.ytd",await et([st("p_head_diff_000_b",W.plaid("#2d4a3e","#1b2b24","#d9d0b4"))])),t}var ve=typeof globalThis.SEAMLINE_NO_EXPORT<"u"&&globalThis.SEAMLINE_NO_EXPORT===!0,B=t=>document.getElementById(t),w={summary:B("summary"),tree:B("tree"),search:B("search"),fileCount:B("file-count"),stage:B("stage"),gl:B("gl"),flat:B("flat"),overlay:B("overlay"),overlayMsg:B("overlay-msg"),drop:B("drop"),tape:B("tape"),inspect:B("inspect"),toast:B("toast"),folderInput:B("folder-input"),filesInput:B("files-input")},$=t=>String(t??"").replace(/[&<>"']/g,e=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[e]),at=t=>t.toLocaleString("en-US");function ot(t,e){try{if(e===void 0)return JSON.parse(localStorage.getItem(`seamline:${t}`));localStorage.setItem(`seamline:${t}`,JSON.stringify(e))}catch{}return null}var d={entries:[],catalog:{collections:[],looseTextures:[],allTextures:[]},visible:[],selected:null,drawable:null,drawables:[],drawableIndex:0,variants:[],variantIndex:-1,lod:"high",wire:!1,alpha:ot("alpha")??!0,grid:ot("grid")??!0,spin:!1,collapsed:new Set(ot("collapsed")||[]),problems:[],token:0},Tt=new Map,_t=new Map,Pt=new WeakMap;async function Ee(t){return new Uint8Array(await t.file.arrayBuffer())}function Un(t){return Tt.has(t.path)||Tt.set(t.path,Ee(t).then(ce)),Tt.get(t.path)}function Te(t){return _t.has(t.path)||_t.set(t.path,Ee(t).then(le)),_t.get(t.path)}function ut(t){return Pt.has(t)||Pt.set(t,t.decode()),Pt.get(t)}function _e(t,e){let n=e?.info?.name;return t.find(o=>o.name&&o.name.toLowerCase()===n)||t[0]||null}function jt(t,e){d.problems.some(n=>n.path===t)||d.problems.push({path:t,message:e})}var ft=new b.WebGLRenderer({canvas:w.gl,antialias:!0,preserveDrawingBuffer:!1});ft.setPixelRatio(Math.min(window.devicePixelRatio,2));var Y=new b.Scene,D=new b.PerspectiveCamera(35,1,.01,100);D.position.set(1.2,.9,1.8);var J=new Hn(D,w.gl);J.enableDamping=!0;J.autoRotateSpeed=1.6;Y.add(new b.HemisphereLight(16777215,4212808,1.4));var $e=new b.DirectionalLight(16777215,1.6);$e.position.set(2,3,2.5);Y.add($e);var Ae=new b.DirectionalLight(16777215,.6);Ae.position.set(-2,1.5,-2.5);Y.add(Ae);var pt=new b.Group;pt.rotation.x=-Math.PI/2;Y.add(pt);var H=null,z=new Map,V=null,K=new b.Group;Y.add(K);function Nt(t){return new b.Color(getComputedStyle(document.documentElement).getPropertyValue(t).trim()||"#000")}function Me(t){K.clear();let e=1.5,n=[],o=[];for(let r=-15;r<=15;r++){let a=r*.1;(r%5===0?o:n).push(-e,0,a,e,0,a,a,0,-e,a,0,e)}let s=(r,a)=>{let l=new b.BufferGeometry;return l.setAttribute("position",new b.Float32BufferAttribute(r,3)),new b.LineSegments(l,new b.LineBasicMaterial({color:a}))};K.add(s(n,Nt("--mat-minor")),s(o,Nt("--mat-major"))),K.position.y=t,K.visible=d.grid}function Vt(){Y.background=Nt("--mat"),Me(K.position.y),Q()}matchMedia("(prefers-color-scheme: dark)").addEventListener("change",Vt);new MutationObserver(Vt).observe(document.documentElement,{attributes:!0,attributeFilter:["data-theme"]});var Ut=!0;function Q(){Ut=!0}J.addEventListener("change",Q);function ke(){let t=w.stage.getBoundingClientRect(),e=Math.max(1,Math.floor(t.width)),n=Math.max(1,Math.floor(t.height));ft.setSize(e,n,!1),D.aspect=e/n,D.updateProjectionMatrix(),Q(),w.flat.hidden||Ie()}new ResizeObserver(ke).observe(w.stage);function Re(){requestAnimationFrame(Re);let t=J.update();(Ut||t||d.spin)&&(ft.render(Y,D),Ut=!1)}function it(){if(H){H.traverse(t=>{t.geometry&&t.geometry.dispose()}),pt.remove(H),H=null;for(let t of z.values())t.dispose();z.clear()}}function Gn(){return new b.MeshStandardMaterial({color:V?16777215:12174024,map:V,roughness:.88,metalness:0,side:b.DoubleSide,alphaTest:d.alpha?.4:0,wireframe:d.wire})}function Se(t,e){it();let n=t.lods[e]||[];H=new b.Group;for(let o of n)for(let s of o.geometries){let r=new b.BufferGeometry;r.setAttribute("position",new b.BufferAttribute(s.positions,3)),s.normals&&r.setAttribute("normal",new b.BufferAttribute(s.normals,3)),s.uvs&&r.setAttribute("uv",new b.BufferAttribute(s.uvs,2)),r.setIndex(new b.BufferAttribute(s.indices,1)),s.normals||r.computeVertexNormals(),z.has(s.shaderIndex)||z.set(s.shaderIndex,Gn());let a=new b.Mesh(r,z.get(s.shaderIndex));a.name=`${t.name||"drawable"}_${s.shaderIndex}`,H.add(a)}H.name=t.name||"drawable",pt.add(H),Q()}function zt(t=!1){if(!H)return;let e=new b.Box3().setFromObject(H);if(e.isEmpty())return;let n=e.getSize(new b.Vector3),o=e.getCenter(new b.Vector3),s=Math.max(n.length()/2,.05),r=b.MathUtils.degToRad(D.fov),a=2*Math.atan(Math.tan(r/2)*D.aspect),l=s/Math.sin(Math.min(r,a)/2)*1.18,i=t?D.position.clone().sub(J.target).normalize():new b.Vector3(.45,.28,1).normalize();J.target.copy(o),D.position.copy(o).addScaledVector(i,l),D.near=l/100,D.far=l*100,D.updateProjectionMatrix(),Me(e.min.y-.002),w.tape.innerHTML=[["W",n.x],["D",n.z],["H",n.y]].map(([c,h])=>`<span><b>${c}</b>${(h*100).toFixed(1)} cm</span>`).join(""),w.tape.hidden=!1,Q()}function Gt(t,e,n){if(V&&V.dispose(),V=null,t){let o=new b.DataTexture(t,e,n,b.RGBAFormat);o.colorSpace=b.SRGBColorSpace,o.wrapS=o.wrapT=b.RepeatWrapping,o.magFilter=b.LinearFilter,o.minFilter=b.LinearMipmapLinearFilter,o.generateMipmaps=!0,o.anisotropy=ft.capabilities.getMaxAnisotropy(),o.needsUpdate=!0,V=o}for(let o of z.values())o.map=V,o.color.set(V?16777215:12174024),o.needsUpdate=!0;Q()}function Z(t,e=!1){w.overlayMsg.innerHTML=t,w.overlay.classList.toggle("error",e),w.overlay.hidden=!1}function Yt(){w.overlay.hidden=!0}var ye=0;function Xt(t){w.toast.textContent=t,w.toast.hidden=!1,clearTimeout(ye),ye=setTimeout(()=>{w.toast.hidden=!0},2600)}var q=null;function Ie(){let t=w.flat,e=w.stage.getBoundingClientRect(),n=Math.min(window.devicePixelRatio,2);t.width=Math.floor(e.width*n),t.height=Math.floor(e.height*n);let o=t.getContext("2d");if(o.clearRect(0,0,t.width,t.height),!q)return;let s=56*n,r=Math.min((t.width-s*2)/q.width,(t.height-s*2)/q.height,8),a=q.width*r,l=q.height*r,i=(t.width-a)/2,c=(t.height-l)/2,h=10*n;for(let p=0;p<l;p+=h)for(let u=0;u<a;u+=h)o.fillStyle=(u+p)/h%2?"#d0d6da":"#f2f4f5",o.fillRect(i+u,c+p,Math.min(h,a-u),Math.min(h,l-p));o.imageSmoothingEnabled=r<1,o.drawImage(q,i,c,a,l)}function $t(t){q=t,w.flat.hidden=!t,w.gl.style.visibility=t?"hidden":"visible",B("toolbar").hidden=!!t,t&&Ie()}function Wt(t,e,n){let o=document.createElement("canvas");return o.width=e,o.height=n,o.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(t.buffer,t.byteOffset,t.byteLength),e,n),0,0),o}function Be(t,e,n){let o=Wt(t,e,n),s=96,r=document.createElement("canvas");r.width=r.height=s;let a=r.getContext("2d");return a.imageSmoothingQuality="high",a.drawImage(o,0,0,s,s),r.toDataURL()}function Fn(){let t=w.search.value.trim().toLowerCase(),e=r=>!t||r.toLowerCase().includes(t),n=[],o=[];for(let r of d.catalog.collections){let a=[];for(let l of r.slots){let i=l.items.filter(c=>e(c.name)||e(r.name)||e(l.label));i.length&&a.push({slot:l,items:i})}a.length&&o.push({coll:r,slots:a})}let s=d.catalog.looseTextures.filter(r=>e(r.info.name));for(let r of o)for(let a of r.slots){let l=`${r.coll.name}|${a.slot.key}`;if(!(d.collapsed.has(l)&&!t))for(let i of a.items)n.push({type:"item",ref:i})}if(s.length&&!(d.collapsed.has("|loose")&&!t))for(let r of s)n.push({type:"loose",ref:r});return{groups:o,loose:s,rows:n}}function ht(){let{groups:t,loose:e,rows:n}=Fn();d.visible=n;let o=w.search.value.trim(),s='<svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',r=d.selected?.ref,a="";for(let l of t){a+=`<div class="coll"><div class="coll-name">${$(l.coll.name)}</div>`;for(let i of l.slots){let c=`${l.coll.name}|${i.slot.key}`,h=!d.collapsed.has(c)||!!o,p=i.slot.id!==void 0?`<span class="sid">${i.slot.key} \xB7 ${i.slot.id}</span>`:"";if(a+=`<button class="slot-head" type="button" data-slot="${$(c)}" aria-expanded="${h}">${s}${$(i.slot.label)} ${p}<span class="count">${i.items.length}</span></button>`,h)for(let u of i.items){let x=u.textures.length;a+=`<button class="item" type="button" role="option" data-item="${$(u.id)}" aria-selected="${u===r}"><span class="name">${$(u.name)}</span><span class="tex${x?"":" none"}">${x?`${x} tex`:"no tex"}</span></button>`}}a+="</div>"}if(e.length){let l=!d.collapsed.has("|loose")||!!o;if(a+=`<div class="coll"><div class="coll-name">Textures without a matching model</div><button class="slot-head" type="button" data-slot="|loose" aria-expanded="${l}">${s}Loose textures<span class="count">${e.length}</span></button>`,l)for(let i of e)a+=`<button class="item" type="button" role="option" data-loose="${$(i.path)}" aria-selected="${i===r}"><span class="name">${$(i.info.name)}</span></button>`;a+="</div>"}a||(a=d.entries.length?`<div class="tree-empty">Nothing matches \u201C${$(o)}\u201D.</div>`:`<div class="tree-empty">Open your resource's <b>stream</b> folder. Models and textures are paired by name, e.g. <code>jbib_000_u.ydd</code> with <code>jbib_diff_000_a_uni.ytd</code>.</div>`),w.tree.innerHTML=a,w.tree.querySelector('[aria-selected="true"]')?.scrollIntoView({block:"nearest"})}w.tree.addEventListener("click",t=>{let e=t.target.closest("[data-slot]");if(e){let s=e.dataset.slot;d.collapsed.has(s)?d.collapsed.delete(s):d.collapsed.add(s),ot("collapsed",[...d.collapsed]),ht();return}let n=t.target.closest("[data-item]");if(n){let s=d.visible.find(r=>r.type==="item"&&r.ref.id===n.dataset.item);s&&lt(s);return}let o=t.target.closest("[data-loose]");if(o){let s=d.visible.find(r=>r.type==="loose"&&r.ref.path===o.dataset.loose);s&&lt(s)}});w.search.addEventListener("input",ht);async function lt(t){d.selected=t;let e=++d.token;return ht(),t.type==="loose"?zn(t.ref,e):jn(t.ref,e)}async function jn(t,e){$t(null),Yt(),d.variants=[],d.variantIndex=-1,j();let n;try{n=await Un(t.drawable)}catch(o){if(e!==d.token)return;jt(t.drawable.path,o.message),it(),w.tape.hidden=!0,d.drawable=null,Z(`<h2>Couldn't read this model</h2><p>${$(o.message)}</p><code>${$(t.drawable.path)}</code>`,!0),j();return}if(e===d.token){if(d.drawables=n.drawables,d.drawableIndex=0,!n.drawables.length){it(),Z("<h2>This file has no drawables</h2><p>The dictionary is empty.</p>",!0),j();return}Ce(0,t,e)}}function Ce(t,e,n){let o=d.drawables[t];d.drawableIndex=t,d.drawable=o,o.lods[d.lod]||(d.lod=["high","med","low","vlow"].find(s=>o.lods[s])||"high"),Gt(null),Se(o,d.lod),H.children.length||Z("<h2>No geometry at this level of detail</h2><p>Try another LOD.</p>"),zt(),Le(),d.variants=e.textures.map(s=>({key:s.path,label:he(s.info),entry:s,status:"loading"}));for(let s of o.embeddedTextures)d.variants.push({key:`embedded:${s.name}`,label:`${s.name} (embedded)`,texture:s,status:"loading"});if(j(),d.variants.length){let s=o.shaders.find(a=>a?.diffuseName)?.diffuseName?.toLowerCase(),r=d.variants.findIndex(a=>(a.entry?.info.name||a.texture?.name||"").toLowerCase()===s);r<0&&(r=0),ct(r,n)}Vn(n)}async function qt(t){if(t.texture)return t.texture;let e=await Te(t.entry),n=_e(e.textures,t.entry);if(!n)throw new Error("The texture dictionary is empty.");return t.texture=n,t.count=e.textures.length,n}async function Vn(t){for(let e of d.variants){if(t!==d.token)return;try{let n=await qt(e);if(!n.supported)throw new Error(`Unsupported format ${n.formatName}`);e.thumb=Be(ut(n),n.width,n.height),e.status="ok"}catch(n){e.status="failed",e.error=n.message,e.entry&&jt(e.entry.path,n.message)}t===d.token&&dt(),await new Promise(n=>setTimeout(n,0))}}async function ct(t,e=d.token){let n=d.variants[t];if(n){d.variantIndex=t,dt();try{let o=await qt(n);if(e!==d.token||d.variantIndex!==t)return;Gt(ut(o),o.width,o.height);let s=w.inspect.querySelector('[data-act="png"]');s&&(s.disabled=!1)}catch(o){if(e!==d.token)return;n.status="failed",n.error=o.message,Gt(null),Xt(`Texture failed: ${o.message}`)}Ft()}}async function zn(t,e){it(),w.tape.hidden=!0,Yt(),d.drawable=null,d.variants=[],j();try{let n=await Te(t);if(e!==d.token)return;let o=_e(n.textures,t);if(!o)throw new Error("The texture dictionary is empty.");d.variants=[{key:t.path,label:t.info.name,entry:t,texture:o,status:"ok"}],d.variantIndex=0,$t(Wt(ut(o),o.width,o.height))}catch(n){if(e!==d.token)return;jt(t.path,n.message),$t(null),Z(`<h2>Couldn't read this texture</h2><p>${$(n.message)}</p><code>${$(t.path)}</code>`,!0)}j()}function j(){let t=d.selected;if(!t){w.inspect.innerHTML=`<section><span class="label">Inspector</span><p class="muted">Pick a model on the left to see its geometry, texture variants and export options.</p></section>${Ht()}`;return}if(t.type==="loose"){let l=d.variants[0];w.inspect.innerHTML=`<section class="title"><span class="tag">Texture</span><h2>${$(t.ref.info.name)}</h2><div class="path">${$(t.ref.path)}</div></section><section id="tex-detail"></section>`+(l&&!ve?'<section><div class="row"><button class="btn" type="button" data-act="png">Export PNG</button></div></section>':"")+Ht(),Ft();return}let e=t.ref,n=d.drawable,o=e.drawable.info,s=Lt(o.slot),r="";if(n){let l=de(n,d.lod),i=n.lods[d.lod]?.[0]?.geometries[0],c=i?`${i.stride} B/vertex`:"-";r=`<dl class="stats">
+      <dt>Vertices</dt><dd>${at(l.vertices)}</dd>
+      <dt>Triangles</dt><dd>${at(l.triangles)}</dd>
+      <dt>Geometries</dt><dd>${l.geometries}</dd>
+      <dt>Vertex size</dt><dd>${c}</dd>
+      <dt>Shaders</dt><dd>${n.shaders.length}</dd>
+      <dt>Diffuse ref</dt><dd>${$(n.shaders.find(h=>h?.diffuseName)?.diffuseName||"-")}</dd>
+    </dl>`,d.drawables.length>1&&(r+=`<div class="field"><label for="drawable-pick">Drawable in this file</label><select id="drawable-pick">${d.drawables.map((h,p)=>`<option value="${p}"${p===d.drawableIndex?" selected":""}>${$(h.name||`#${p+1}`)}</option>`).join("")}</select></div>`)}let a=d.catalog.allTextures;w.inspect.innerHTML=`
+    <section class="title">
+      <span class="tag">${$(s.label)}${s.id!==void 0?` \xB7 component ${s.id}`:""}</span>
+      <h2>${$(e.name)}</h2>
+      <div class="path">${$(e.drawable.path)}</div>
+    </section>
+    <section>${r||'<p class="muted">Reading\u2026</p>'}</section>
+    <section>
+      <div class="pane-head" style="padding:0;border:0"><span class="label">Texture variants</span><span class="label">${d.variants.length}</span></div>
+      <div class="variants" id="variants"></div>
+      <div class="field"><label for="any-texture">Try any loaded texture</label>
+        <select id="any-texture"><option value="">Choose a .ytd\u2026</option>${a.map(l=>`<option value="${$(l.path)}">${$(l.info.name)}</option>`).join("")}</select>
+      </div>
+    </section>
+    <section id="tex-detail"></section>
+    ${ve?'<section><span class="label">Export</span><p class="muted">Exports are turned off in the hosted copy. Use the downloaded <code>seamline.html</code> to save models and textures.</p></section>':`<section>
+      <span class="label">Export</span>
+      <div class="row">
+        <button class="btn" type="button" data-act="glb"${n?"":" disabled"}>Model .glb</button>
+        <button class="btn" type="button" data-act="png"${d.variantIndex>=0?"":" disabled"}>Texture .png</button>
+        <button class="btn" type="button" data-act="shot"${n?"":" disabled"}>Screenshot</button>
+      </div>
+    </section>`}
+    ${Ht()}`,dt(),Ft()}function dt(){let t=document.getElementById("variants");if(t){if(!d.variants.length){t.outerHTML='<p class="muted" id="variants">No texture found for this model. Textures pair by name: <code>\u2026_diff_NNN_a_uni.ytd</code>. You can still try any loaded texture below.</p>';return}t.innerHTML=d.variants.map((e,n)=>{let o=e.status==="ok"&&e.thumb?`<img class="thumb" src="${e.thumb}" alt="">`:`<span class="thumb">${e.status==="failed"?"failed":""}</span>`,[s,r]=e.label.split(" \xB7 ");return`<button class="variant${e.status==="failed"?" failed":""}" type="button" data-variant="${n}" aria-pressed="${n===d.variantIndex}" title="${$(e.error||e.entry?.path||e.label)}">${o}<span class="vl"><b>${$(s)}</b>${r?`<small>${$(r)}</small>`:""}</span></button>`}).join("")}}function Ft(){let t=document.getElementById("tex-detail");if(!t)return;let e=d.variants[d.variantIndex];if(!e||!e.texture){t.hidden=!0;return}t.hidden=!1;let n=e.texture;t.innerHTML=`<span class="label">Texture</span><dl class="stats">
+    <dt>Name</dt><dd>${$(n.name)}</dd>
+    <dt>Size</dt><dd>${n.width} \xD7 ${n.height}</dd>
+    <dt>Format</dt><dd>${$(n.formatName)}</dd>
+    <dt>Mip levels</dt><dd>${n.levels}</dd>
+    ${e.count>1?`<dt>In this .ytd</dt><dd>${e.count} textures</dd>`:""}
+    ${e.error?`<dt>Problem</dt><dd>${$(e.error)}</dd>`:""}
+  </dl>`}function Ht(){return d.problems.length?`<section><span class="label">Files that couldn't be read (${d.problems.length})</span><div class="problems">${d.problems.slice(-30).reverse().map(t=>`<div class="problem"><b>${$(t.path)}</b>${$(t.message)}</div>`).join("")}</div></section>`:""}w.inspect.addEventListener("click",t=>{let e=t.target.closest("[data-variant]");if(e){ct(+e.dataset.variant);return}let n=t.target.closest("[data-act]")?.dataset.act;n==="png"&&Yn(),n==="glb"&&Xn(),n==="shot"&&Wn()});w.inspect.addEventListener("change",async t=>{if(t.target.id==="drawable-pick"&&Ce(+t.target.value,d.selected.ref,d.token),t.target.id==="any-texture"&&t.target.value){let e=d.catalog.allTextures.find(o=>o.path===t.target.value);if(!e)return;let n=d.variants.findIndex(o=>o.key===e.path);if(n<0){d.variants.push({key:e.path,label:e.info.name,entry:e,status:"loading"}),n=d.variants.length-1;let o=d.variants[n];qt(o).then(s=>{o.thumb=Be(ut(s),s.width,s.height),o.status="ok",dt()}).catch(s=>{o.status="failed",o.error=s.message,dt()})}ct(n)}});function Le(){document.querySelectorAll("[data-lod]").forEach(t=>{t.disabled=!d.drawable?.lods[t.dataset.lod],t.setAttribute("aria-pressed",String(t.dataset.lod===d.lod))})}B("lod-group").addEventListener("click",t=>{let e=t.target.closest("[data-lod]");!e||e.disabled||!d.drawable||(d.lod=e.dataset.lod,Se(d.drawable,d.lod),zt(!0),Le(),j())});function At(t,e,n){let o=B(t);o.setAttribute("aria-pressed",String(d[e])),o.addEventListener("click",()=>{d[e]=!d[e],o.setAttribute("aria-pressed",String(d[e])),n(),Q()})}At("t-wire","wire",()=>{for(let t of z.values())t.wireframe=d.wire});At("t-alpha","alpha",()=>{ot("alpha",d.alpha);for(let t of z.values())t.alphaTest=d.alpha?.4:0,t.needsUpdate=!0});At("t-grid","grid",()=>{ot("grid",d.grid),K.visible=d.grid});At("t-spin","spin",()=>{J.autoRotate=d.spin});B("reset-view").addEventListener("click",()=>zt());function Kt(t,e){let n=URL.createObjectURL(t),o=document.createElement("a");o.href=n,o.download=e,document.body.appendChild(o),o.click(),o.remove(),setTimeout(()=>URL.revokeObjectURL(n),4e3),Xt(`Saved ${e}`)}function Yn(){let t=d.variants[d.variantIndex];if(!t?.texture)return;let e=t.texture;Wt(ut(e),e.width,e.height).toBlob(n=>Kt(n,`${e.name||"texture"}.png`),"image/png")}function Xn(){if(!H)return;let t=d.drawable?.name||"model";new Nn().parse(pt,e=>Kt(new Blob([e],{type:"model/gltf-binary"}),`${t}.glb`),e=>Xt(`Export failed: ${e.message||e}`),{binary:!0,onlyVisible:!0})}function Wn(){ft.render(Y,D),w.gl.toBlob(t=>Kt(t,`${d.drawable?.name||"screenshot"}.png`),"image/png")}document.addEventListener("keydown",t=>{if(t.target.closest("input, select, textarea")||t.metaKey||t.ctrlKey||t.altKey)return;let e=d.visible,n=e.findIndex(o=>o.ref===d.selected?.ref);(t.key==="ArrowDown"||t.key==="j")&&e.length?(t.preventDefault(),lt(e[Math.min(e.length-1,n+1)])):(t.key==="ArrowUp"||t.key==="k")&&e.length?(t.preventDefault(),lt(e[Math.max(0,n-1)])):(t.key==="ArrowRight"||t.key==="l")&&d.variants.length>1&&d.selected?.type==="item"?(t.preventDefault(),ct((d.variantIndex+1)%d.variants.length)):(t.key==="ArrowLeft"||t.key==="h")&&d.variants.length>1&&d.selected?.type==="item"?(t.preventDefault(),ct((d.variantIndex-1+d.variants.length)%d.variants.length)):t.key==="/"&&(t.preventDefault(),w.search.focus())});function Mt(t,e){Tt.clear(),_t.clear(),d.entries=t,d.catalog=pe(t),d.problems=[],d.selected=null,d.drawable=null;let n=d.catalog.collections.reduce((s,r)=>s+r.slots.reduce((a,l)=>a+l.items.length,0),0),o=d.catalog.allTextures.length;w.summary.textContent=`${e} \xB7 ${at(n)} models \xB7 ${at(o)} textures`,w.fileCount.textContent=at(n+o),ht(),j(),d.visible.length?lt(d.visible[0]):(it(),w.tape.hidden=!0,$t(null),Z(t.length?"<h2>No .ydd or .ytd files found</h2><p>Open the <b>stream</b> folder of a clothing resource, or the folder above it.</p>":"<h2>Open a stream folder to begin</h2><p>Or drop it anywhere on this page.</p>"))}function Jt(t){return[...t].filter(e=>/\.(ydd|ytd)$/i.test(e.name)).map(e=>({path:e.webkitRelativePath||e.name,file:e}))}B("open-folder").addEventListener("click",()=>w.folderInput.click());B("open-files").addEventListener("click",()=>w.filesInput.click());w.folderInput.addEventListener("change",()=>{let t=Jt(w.folderInput.files),e=w.folderInput.files[0]?.webkitRelativePath?.split("/")[0]||"Folder";Mt(t,e),w.folderInput.value=""});w.filesInput.addEventListener("change",()=>{Mt(Jt(w.filesInput.files),`${w.filesInput.files.length} files`),w.filesInput.value=""});B("load-demo").addEventListener("click",Oe);async function Oe(){try{Mt(await ge(),"Demo files (generated)")}catch(t){Z(`<h2>Couldn't build the demo</h2><p>${$(t.message)}</p>`,!0)}}async function De(t,e,n){if(t.isFile){if(/\.(ydd|ytd)$/i.test(t.name)){let o=await new Promise((s,r)=>t.file(s,r));n.push({path:e+t.name,file:o})}return}if(t.isDirectory){let o=t.createReader();for(;;){let s=await new Promise((r,a)=>o.readEntries(r,a));if(!s.length)break;for(let r of s)await De(r,`${e}${t.name}/`,n)}}}var rt=0;window.addEventListener("dragenter",t=>{t.dataTransfer?.types.includes("Files")&&(rt++,w.drop.hidden=!1)});window.addEventListener("dragleave",()=>{rt=Math.max(0,rt-1),rt||(w.drop.hidden=!0)});window.addEventListener("dragover",t=>t.preventDefault());window.addEventListener("drop",async t=>{t.preventDefault(),rt=0,w.drop.hidden=!0;let n=[...t.dataTransfer?.items||[]].map(r=>r.webkitGetAsEntry?.()).filter(Boolean),o=[];if(n.length){Z("<h2>Reading folder\u2026</h2>");for(let r of n)await De(r,"",o);Yt()}else o=Jt(t.dataTransfer.files);let s=n.length===1?n[0].name:`${o.length} files`;Mt(o,s)});Vt();ke();Re();ht();j();Oe();
+</script>
+
+</html>
