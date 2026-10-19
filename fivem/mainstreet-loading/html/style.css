@@ -1,0 +1,87 @@
+/* MainStreet loading screen: a neon city at night, the progress bar is a stretch of road. */
+@font-face { font-family: 'Sedgwick Ave Display'; src: url(fonts/sedgwick-ave-display-latin-400-normal.woff2) format('woff2'); font-weight: 400; }
+@font-face { font-family: 'Barlow Semi Condensed'; src: url(fonts/barlow-semi-condensed-latin-400-normal.woff2) format('woff2'); font-weight: 400; }
+@font-face { font-family: 'Barlow Semi Condensed'; src: url(fonts/barlow-semi-condensed-latin-500-normal.woff2) format('woff2'); font-weight: 500; }
+@font-face { font-family: 'Barlow Semi Condensed'; src: url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format('woff2'); font-weight: 600; }
+@font-face { font-family: 'Barlow Semi Condensed'; src: url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format('woff2'); font-weight: 700; }
+
+:root {
+  --ink: #050a07;          /* night */
+  --asphalt: #141a16;      /* the road */
+  --neon: #4dff6a;         /* MainStreet green */
+  --neon-deep: #18b440;
+  --chrome: #eef6f0;
+  --muted: rgba(238, 246, 240, .62);
+  --haze: #ff5fae;         /* the pink sky, used sparingly */
+  --tag: 'Sedgwick Ave Display', 'Permanent Marker', 'Segoe Print', cursive;
+  --ui: 'Barlow Semi Condensed', 'Arial Narrow', 'Segoe UI', sans-serif;
+  font-size: min(0.8333vw, 1.4815vh);   /* 16 px at 1920 x 1080, scales with the window */
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--ink); color: var(--chrome);
+  font-family: var(--ui); -webkit-user-select: none; user-select: none; }
+#city { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.shade { position: fixed; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(5,10,7,.88) 0%, rgba(5,10,7,.55) 30%, rgba(5,10,7,0) 58%),
+              linear-gradient(0deg, rgba(5,10,7,.7) 0%, rgba(5,10,7,0) 35%); }
+
+/* top bar */
+.top { position: fixed; top: 2.5rem; left: 3.5rem; right: 3.5rem; display: flex; justify-content: space-between; align-items: center; }
+.conn { display: flex; align-items: center; gap: .8rem; font-size: 1.05rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.pulse { width: .6rem; height: .6rem; border-radius: 50%; background: var(--neon); box-shadow: 0 0 .8rem var(--neon); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.clock { font-variant-numeric: tabular-nums; color: var(--chrome); margin-left: .4rem; }
+.music { display: flex; align-items: center; gap: .7rem; font: 600 1rem var(--ui); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--chrome); background: rgba(5,10,7,.55); border: 1px solid rgba(77,255,106,.35); border-radius: 2rem; padding: .55rem 1rem .55rem .9rem; cursor: pointer; }
+.music:hover { border-color: var(--neon); }
+.music:focus-visible { outline: 2px solid var(--neon); outline-offset: 3px; }
+.music kbd { font: 600 .8rem var(--ui); color: var(--muted); border: 1px solid rgba(238,246,240,.3); border-radius: .3rem; padding: .05rem .4rem; }
+.bars { display: flex; align-items: flex-end; gap: .18rem; height: 1rem; }
+.bars i { width: .22rem; background: var(--neon); border-radius: .1rem; height: 30%; animation: eq 1s ease-in-out infinite; }
+.bars i:nth-child(2) { animation-delay: -.3s; } .bars i:nth-child(3) { animation-delay: -.6s; } .bars i:nth-child(4) { animation-delay: -.15s; }
+@keyframes eq { 50% { height: 100%; } }
+.music[aria-pressed="false"] .bars i { animation: none; height: 25%; background: var(--muted); }
+
+/* the panel */
+.panel { position: fixed; left: 3.5rem; bottom: 4.5rem; width: 40rem; display: flex; flex-direction: column; gap: 2.6rem; }
+.brand { min-height: 8rem; display: flex; align-items: flex-end; }
+#logoImg { max-width: 30rem; max-height: 12rem; object-fit: contain; filter: drop-shadow(0 0 1.2rem rgba(77,255,106,.35)); }
+.wordmark { margin: 0; font-family: var(--tag); font-weight: 400; font-size: 7.4rem; line-height: .9; letter-spacing: .01em; transform: rotate(-4deg); transform-origin: left bottom;
+  display: flex; align-items: flex-start; gap: .8rem; }
+.wordmark span { background: linear-gradient(180deg, #ffffff 0%, #dfe9e2 42%, #8e9c93 52%, #f6fbf7 70%, #c9d6cd 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: .14rem var(--neon-deep);
+  filter: drop-shadow(0 0 .1rem var(--neon)) drop-shadow(0 0 1.4rem rgba(77,255,106,.55)) drop-shadow(.35rem .45rem 0 rgba(0,0,0,.65)); }
+.wordmark b { font-family: var(--ui); font-weight: 700; font-size: 2rem; letter-spacing: .08em; color: var(--ink); background: var(--neon);
+  padding: .1rem .7rem; border-radius: .35rem; margin-top: 1.3rem; transform: rotate(6deg); box-shadow: 0 0 1.2rem rgba(77,255,106,.6); }
+
+.load { display: flex; flex-direction: column; gap: 1.1rem; }
+.row { display: flex; justify-content: space-between; align-items: flex-end; }
+.stage { font-size: 1.35rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.pct { font-size: 3.6rem; font-weight: 700; line-height: .9; font-variant-numeric: tabular-nums; color: var(--chrome); }
+.pct small { font-size: 1.6rem; color: var(--neon); margin-left: .15rem; }
+
+/* the road: asphalt with a dashed centre line; the lit stretch glows green */
+.road { position: relative; height: 1.5rem; border-radius: .35rem; background: var(--asphalt); overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(238,246,240,.08); }
+.road::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: .16rem; transform: translateY(-50%);
+  background: repeating-linear-gradient(90deg, rgba(238,246,240,.32) 0 1.6rem, transparent 1.6rem 2.8rem); }
+.fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: linear-gradient(90deg, rgba(24,180,64,.75), var(--neon)); box-shadow: 0 0 1.2rem rgba(77,255,106,.55); }
+.fill::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: .16rem; transform: translateY(-50%);
+  background: repeating-linear-gradient(90deg, rgba(5,10,7,.55) 0 1.6rem, transparent 1.6rem 2.8rem); }
+.head { position: absolute; right: -.5rem; top: 50%; width: 1rem; height: 1rem; transform: translateY(-50%); border-radius: 50%;
+  background: #fff; box-shadow: 0 0 .6rem #fff, 0 0 1.6rem var(--neon), 0 0 3rem var(--neon); }
+
+.tip { display: flex; flex-direction: column; gap: .7rem; padding-left: 1.1rem; border-left: .2rem solid var(--neon); }
+.tipHead { display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--neon); }
+.tipHead .num { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tip p { margin: 0; font-size: 1.5rem; font-weight: 500; line-height: 1.35; min-height: 4.1rem; max-width: 36rem; transition: opacity .45s ease, transform .45s ease; }
+.tip p.out { opacity: 0; transform: translateY(.4rem); }
+
+.log { position: fixed; right: 3.5rem; bottom: 2.4rem; max-width: 46rem; font-size: .95rem; letter-spacing: .06em; color: rgba(238,246,240,.42);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+
+body.leaving { opacity: 0; transition: opacity 1s ease; }
+@media (prefers-reduced-motion: reduce) { .pulse, .bars i { animation: none; } .tip p { transition: none; } }
